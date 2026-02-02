@@ -58,9 +58,23 @@ const ZOOM_STEP = 0.1;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 let zoom = 1.0;
+let zoomToastTimer = 0;
+
+const zoomToast = document.createElement("div");
+zoomToast.className = "zoom-toast";
+document.body.appendChild(zoomToast);
+
+function showZoomToast() {
+  const pct = Math.round(zoom * 100);
+  zoomToast.textContent = `${pct}%`;
+  zoomToast.classList.add("visible");
+  clearTimeout(zoomToastTimer);
+  zoomToastTimer = window.setTimeout(() => zoomToast.classList.remove("visible"), 1200);
+}
 
 function applyZoom() {
   document.documentElement.style.fontSize = `${zoom * 14}px`;
+  showZoomToast();
 }
 
 function zoomIn() {
