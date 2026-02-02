@@ -19,6 +19,21 @@ marked.setOptions({
   breaks: false,
 });
 
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export function renderMarkdown(source: string): string {
-  return marked.parse(source) as string;
+  let frontmatterHtml = "";
+  let body = source;
+
+  const m = FRONTMATTER_RE.exec(source);
+  if (m) {
+    frontmatterHtml = `<pre class="frontmatter"><code>${escapeHtml(m[1])}</code></pre>`;
+    body = source.slice(m[0].length);
+  }
+
+  return frontmatterHtml + (marked.parse(body) as string);
 }

@@ -287,6 +287,29 @@ body, #app {
   font-size: 1rem;
 }
 
+/* Frontmatter */
+.preview-wrap pre.frontmatter {
+  background: #f6f8fa;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 24px;
+  font-size: 0.9em;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+}
+
+.preview-wrap pre.frontmatter code {
+  background: none;
+  padding: 0;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 /* CodeMirror overrides */
 .content-pane .cm-editor {
   height: 100%;
