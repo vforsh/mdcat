@@ -6,6 +6,7 @@ let container: HTMLElement;
 let header: HTMLElement;
 let treeWrap: HTMLElement;
 let onSelect: ((path: string) => void) | null = null;
+const manualExpanded = new Set<string>();
 
 export function createFileTree(selectHandler: (path: string) => void): HTMLElement {
   onSelect = selectHandler;
@@ -35,8 +36,9 @@ function render(state: ReturnType<typeof getState>) {
   treeWrap.innerHTML = "";
   if (state.tree.length === 0) return;
 
-  const expandedDirs = collectAncestorDirs(state.tree, state.filePath);
-  renderNodes(state.tree, treeWrap, 0, state.filePath, expandedDirs);
+  const ancestorDirs = collectAncestorDirs(state.tree, state.filePath);
+  for (const dir of ancestorDirs) manualExpanded.add(dir);
+  renderNodes(state.tree, treeWrap, 0, state.filePath, manualExpanded);
 }
 
 /** Collect paths of all directories that are ancestors of `targetPath`. */
@@ -81,6 +83,28 @@ function renderNodes(
   }
 }
 
+function createCopyBtn(path: string): HTMLElement {
+  const btn = document.createElement("span");
+  btn.className = "tree-item-copy";
+  btn.title = path;
+  btn.appendChild(icons.copy(13));
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(path);
+    btn.innerHTML = "";
+    btn.appendChild(icons.check(13));
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.innerHTML = "";
+      btn.appendChild(icons.copy(13));
+      btn.classList.remove("copied");
+    }, 1500);
+  });
+
+  return btn;
+}
+
 function renderDir(
   node: FileNode,
   parent: HTMLElement,
@@ -105,8 +129,11 @@ function renderDir(
   item.appendChild(folderIcon);
 
   const label = document.createElement("span");
+  label.className = "tree-item-label";
   label.textContent = node.name;
   item.appendChild(label);
+
+  item.appendChild(createCopyBtn(node.path));
 
   parent.appendChild(item);
 
@@ -120,6 +147,11 @@ function renderDir(
 
   item.addEventListener("click", () => {
     const collapsed = childWrap.classList.toggle("collapsed");
+    if (collapsed) {
+      manualExpanded.delete(node.path);
+    } else {
+      manualExpanded.add(node.path);
+    }
     chevron.innerHTML = "";
     chevron.appendChild(collapsed ? icons.chevronRight(14) : icons.chevronDown(14));
     folderIcon.innerHTML = "";
@@ -149,8 +181,11 @@ function renderFile(
   item.appendChild(fileIcon);
 
   const label = document.createElement("span");
+  label.className = "tree-item-label";
   label.textContent = node.name;
   item.appendChild(label);
+
+  item.appendChild(createCopyBtn(node.path));
 
   item.addEventListener("click", () => {
     if (onSelect) onSelect(node.path);
