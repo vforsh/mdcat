@@ -1,0 +1,224 @@
+:root {
+  --toolbar-h: 42px;
+  --sidebar-w: 240px;
+  --border: #e0e0e0;
+  --bg: #ffffff;
+  --bg-sidebar: #f7f7f7;
+  --bg-toolbar: #fafafa;
+  --text: #24292f;
+  --text-muted: #656d76;
+  --accent: #0969da;
+  --active-bg: #e8f0fe;
+  --hover-bg: #f0f0f0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Toolbar */
+.toolbar {
+  height: var(--toolbar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  padding-left: 78px; /* space for macOS traffic lights */
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-toolbar);
+  -webkit-app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.toolbar-filename {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar-filename .dirty-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 6px;
+  vertical-align: middle;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.toolbar-filename .dirty-dot.visible {
+  opacity: 1;
+}
+
+.toolbar-btn {
+  -webkit-app-region: no-drag;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+
+.toolbar-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.toolbar-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* Main layout */
+.main-layout {
+  display: flex;
+  height: calc(100% - var(--toolbar-h));
+}
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.tree-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 4px;
+  margin: 1px 4px;
+  transition: background 0.1s;
+}
+
+.tree-item:hover {
+  background: var(--hover-bg);
+}
+
+.tree-item.active {
+  background: var(--active-bg);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tree-item .icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.tree-dir-children {
+  overflow: hidden;
+}
+
+.tree-dir-children.collapsed {
+  display: none;
+}
+
+/* Content pane */
+.content-pane {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+}
+
+/* Preview */
+.preview-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+/* CodeMirror overrides */
+.content-pane .cm-editor {
+  height: 100%;
+  font-size: 14px;
+}
+
+.content-pane .cm-editor .cm-scroller {
+  padding: 16px 0;
+}
+
+.content-pane .cm-editor .cm-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.content-pane .cm-editor .cm-gutters {
+  display: none;
+}
+
+.content-pane .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  gap: 8px;
+}
+
+.empty-state .shortcut {
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+}

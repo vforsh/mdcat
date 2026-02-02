@@ -1,0 +1,64 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/schemas/main/tauri-conf.json",
+  "productName": "mdash",
+  "version": "0.1.0",
+  "identifier": "com.robowhale.mdash",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "title": "mdash",
+        "label": "main",
+        "width": 1100,
+        "height": 750,
+        "minWidth": 600,
+        "minHeight": 400,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.15"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdown", "mkd"],
+        "mimeType": "text/markdown",
+        "name": "Markdown Document"
+      }
+    ]
+  },
+  "plugins": {
+    "cli": {
+      "args": [
+        {
+          "name": "file",
+          "index": 1,
+          "takesValue": true
+        }
+      ]
+    }
+  }
+}
