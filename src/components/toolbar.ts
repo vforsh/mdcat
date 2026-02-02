@@ -17,7 +17,7 @@ export function createToolbar(): HTMLElement {
   nameWrap.appendChild(dirtyDot);
 
   filenameEl = document.createElement("span");
-  filenameEl.textContent = "mdash";
+  filenameEl.textContent = "mdcat";
   nameWrap.appendChild(filenameEl);
 
   bar.appendChild(nameWrap);
@@ -41,7 +41,7 @@ function render(state: ReturnType<typeof getState>) {
     const name = state.filePath.split("/").pop() || state.filePath;
     filenameEl.textContent = name;
   } else {
-    filenameEl.textContent = "mdash";
+    filenameEl.textContent = "mdcat";
   }
 
   dirtyDot.classList.toggle("visible", state.dirty);

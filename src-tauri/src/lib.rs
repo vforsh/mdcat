@@ -22,19 +22,38 @@ pub fn run() {
             commands::get_opened_file,
         ])
         .setup(|app| {
-            // Handle CLI args
+            // Try tauri-plugin-cli first
+            let mut file_path: Option<String> = None;
             if let Ok(matches) = app.cli().matches() {
                 if let Some(arg) = matches.args.get("file") {
                     if let serde_json::Value::String(ref path) = arg.value {
                         if !path.is_empty() {
-                            let p = path.clone();
-                            let state = app.state::<OpenedFile>();
-                            let mut lock = state.0.lock().unwrap();
-                            *lock = Some(p);
+                            file_path = Some(path.clone());
                         }
                     }
                 }
             }
+
+            // Fallback: scan raw args for a .md file path (handles tauri dev extra flags)
+            if file_path.is_none() {
+                for arg in std::env::args().skip(1) {
+                    if arg.starts_with('-') {
+                        continue;
+                    }
+                    let p = std::path::Path::new(&arg);
+                    if p.is_file() {
+                        file_path = Some(arg);
+                        break;
+                    }
+                }
+            }
+
+            if let Some(path) = file_path {
+                let state = app.state::<OpenedFile>();
+                let mut lock = state.0.lock().unwrap();
+                *lock = Some(path);
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())

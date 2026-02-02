@@ -1,5 +1,6 @@
 import { FileNode } from "../types";
 import { getState, subscribe } from "../state";
+import * as icons from "../utils/icons";
 
 let container: HTMLElement;
 let onSelect: ((path: string) => void) | null = null;
@@ -47,10 +48,15 @@ function renderDir(
   item.className = "tree-item";
   item.style.paddingLeft = `${8 + depth * 16}px`;
 
-  const icon = document.createElement("span");
-  icon.className = "icon";
-  icon.textContent = "▸";
-  item.appendChild(icon);
+  const chevron = document.createElement("span");
+  chevron.className = "icon chevron";
+  chevron.appendChild(icons.chevronDown(14));
+  item.appendChild(chevron);
+
+  const folderIcon = document.createElement("span");
+  folderIcon.className = "icon";
+  folderIcon.appendChild(icons.folderOpen());
+  item.appendChild(folderIcon);
 
   const label = document.createElement("span");
   label.textContent = node.name;
@@ -68,11 +74,11 @@ function renderDir(
 
   item.addEventListener("click", () => {
     const collapsed = childWrap.classList.toggle("collapsed");
-    icon.textContent = collapsed ? "▸" : "▾";
+    chevron.innerHTML = "";
+    chevron.appendChild(collapsed ? icons.chevronRight(14) : icons.chevronDown(14));
+    folderIcon.innerHTML = "";
+    folderIcon.appendChild(collapsed ? icons.folder() : icons.folderOpen());
   });
-
-  // Start expanded
-  icon.textContent = "▾";
 }
 
 function renderFile(
@@ -86,10 +92,15 @@ function renderFile(
   if (node.path === activePath) item.classList.add("active");
   item.style.paddingLeft = `${8 + depth * 16}px`;
 
-  const icon = document.createElement("span");
-  icon.className = "icon";
-  icon.textContent = "📄";
-  item.appendChild(icon);
+  // spacer to align with folder names (chevron width)
+  const spacer = document.createElement("span");
+  spacer.className = "icon chevron";
+  item.appendChild(spacer);
+
+  const fileIcon = document.createElement("span");
+  fileIcon.className = "icon";
+  fileIcon.appendChild(icons.fileText());
+  item.appendChild(fileIcon);
 
   const label = document.createElement("span");
   label.textContent = node.name;

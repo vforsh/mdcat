@@ -18,6 +18,12 @@ export function createLayout(
   const sidebar = createFileTree(onFileSelect);
   main.appendChild(sidebar);
 
+  const handle = document.createElement("div");
+  handle.className = "resize-handle";
+  main.appendChild(handle);
+
+  initResize(handle, sidebar);
+
   const contentPane = document.createElement("div");
   contentPane.className = "content-pane";
   main.appendChild(contentPane);
@@ -42,4 +48,33 @@ export function createLayout(
     empty.style.display = state.filePath ? "none" : "flex";
   });
   empty.style.display = getState().filePath ? "none" : "flex";
+}
+
+function initResize(handle: HTMLElement, sidebar: HTMLElement) {
+  let startX = 0;
+  let startW = 0;
+
+  function onMouseMove(e: MouseEvent) {
+    const newW = Math.max(120, Math.min(startW + e.clientX - startX, window.innerWidth / 2));
+    sidebar.style.width = `${newW}px`;
+  }
+
+  function onMouseUp() {
+    handle.classList.remove("dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  }
+
+  handle.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = sidebar.getBoundingClientRect().width;
+    handle.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
 }

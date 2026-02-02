@@ -31,8 +31,8 @@ async function openFile(path: string) {
   });
 
   // Update window title
-  const name = path.split("/").pop() || "mdash";
-  document.title = `${name} — mdash`;
+  const name = path.split("/").pop() || "mdcat";
+  document.title = `${name} — mdcat`;
 }
 
 async function handleSave() {
@@ -50,6 +50,32 @@ async function handleOpen() {
   if (selected) {
     await openFile(selected as string);
   }
+}
+
+// --- Zoom ---
+
+const ZOOM_STEP = 0.1;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+let zoom = 1.0;
+
+function applyZoom() {
+  document.documentElement.style.fontSize = `${zoom * 14}px`;
+}
+
+function zoomIn() {
+  zoom = Math.min(ZOOM_MAX, +(zoom + ZOOM_STEP).toFixed(2));
+  applyZoom();
+}
+
+function zoomOut() {
+  zoom = Math.max(ZOOM_MIN, +(zoom - ZOOM_STEP).toFixed(2));
+  applyZoom();
+}
+
+function zoomReset() {
+  zoom = 1.0;
+  applyZoom();
 }
 
 // --- Keyboard shortcuts ---
@@ -70,6 +96,21 @@ document.addEventListener("keydown", (e) => {
   if (meta && e.key === "o") {
     e.preventDefault();
     handleOpen();
+  }
+
+  if (meta && (e.key === "=" || e.key === "+")) {
+    e.preventDefault();
+    zoomIn();
+  }
+
+  if (meta && e.key === "-") {
+    e.preventDefault();
+    zoomOut();
+  }
+
+  if (meta && e.key === "0") {
+    e.preventDefault();
+    zoomReset();
   }
 });
 
