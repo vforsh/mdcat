@@ -1,4 +1,4 @@
-import { getState, subscribe } from "../state";
+import { getState, subscribe, toggleMode } from "../state";
 import { renderMarkdown } from "../utils/markdown";
 import "github-markdown-css/github-markdown-light.css";
 import "highlight.js/styles/github.css";
@@ -15,6 +15,10 @@ export function createPreview(): HTMLElement {
   wrap = document.createElement("div");
   wrap.className = "preview-wrap markdown-body";
   container.appendChild(wrap);
+
+  container.addEventListener("dblclick", () => {
+    if (getState().mode === "preview") toggleMode();
+  });
 
   subscribe(render);
   render(getState());
