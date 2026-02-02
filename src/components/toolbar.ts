@@ -1,8 +1,10 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getState, subscribe, toggleMode } from "../state";
 
 let filenameEl: HTMLElement;
 let dirtyDot: HTMLElement;
-let modeBtn: HTMLButtonElement;
+let previewBtn: HTMLButtonElement;
+let rawBtn: HTMLButtonElement;
 
 export function createToolbar(): HTMLElement {
   const bar = document.createElement("div");
@@ -23,12 +25,29 @@ export function createToolbar(): HTMLElement {
   bar.appendChild(nameWrap);
 
   // Mode toggle
-  modeBtn = document.createElement("button");
-  modeBtn.className = "toolbar-btn";
-  modeBtn.textContent = "Raw";
-  modeBtn.title = "Toggle editor (⌘E)";
-  modeBtn.addEventListener("click", toggleMode);
-  bar.appendChild(modeBtn);
+  const toggleWrap = document.createElement("div");
+  toggleWrap.className = "mode-toggle";
+  toggleWrap.title = "Toggle editor (⌘E)";
+
+  previewBtn = document.createElement("button");
+  previewBtn.className = "mode-toggle-btn active";
+  previewBtn.textContent = "Preview";
+  previewBtn.addEventListener("click", () => { if (getState().mode !== "preview") toggleMode(); });
+
+  rawBtn = document.createElement("button");
+  rawBtn.className = "mode-toggle-btn";
+  rawBtn.textContent = "Raw";
+  rawBtn.addEventListener("click", () => { if (getState().mode !== "raw") toggleMode(); });
+
+  toggleWrap.append(previewBtn, rawBtn);
+  bar.appendChild(toggleWrap);
+
+  // Window dragging (decorations: false requires explicit startDragging in Tauri v2)
+  bar.addEventListener("mousedown", (e) => {
+    if (e.buttons === 1 && !(e.target as HTMLElement).closest("button, input, select, a")) {
+      getCurrentWindow().startDragging();
+    }
+  });
 
   subscribe(render);
   render(getState());
@@ -46,11 +65,7 @@ function render(state: ReturnType<typeof getState>) {
 
   dirtyDot.classList.toggle("visible", state.dirty);
 
-  if (state.mode === "raw") {
-    modeBtn.textContent = "Preview";
-    modeBtn.classList.add("active");
-  } else {
-    modeBtn.textContent = "Raw";
-    modeBtn.classList.remove("active");
-  }
+  const isPreview = state.mode === "preview";
+  previewBtn.classList.toggle("active", isPreview);
+  rawBtn.classList.toggle("active", !isPreview);
 }
