@@ -10,17 +10,23 @@ export function createToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "toolbar";
 
-  // Filename
+  // Left spacer (mirrors toggle width for centering)
+  const leftSpacer = document.createElement("div");
+  leftSpacer.className = "toolbar-spacer";
+  bar.appendChild(leftSpacer);
+
+  // Filename (centered)
   const nameWrap = document.createElement("div");
   nameWrap.className = "toolbar-filename";
-
-  dirtyDot = document.createElement("span");
-  dirtyDot.className = "dirty-dot";
-  nameWrap.appendChild(dirtyDot);
 
   filenameEl = document.createElement("span");
   filenameEl.textContent = "mdcat";
   nameWrap.appendChild(filenameEl);
+
+  dirtyDot = document.createElement("span");
+  dirtyDot.className = "dirty-indicator";
+  dirtyDot.textContent = "[edited]";
+  nameWrap.appendChild(dirtyDot);
 
   bar.appendChild(nameWrap);
 
@@ -36,11 +42,15 @@ export function createToolbar(): HTMLElement {
 
   rawBtn = document.createElement("button");
   rawBtn.className = "mode-toggle-btn";
-  rawBtn.textContent = "Raw";
+  rawBtn.textContent = "Edit";
   rawBtn.addEventListener("click", () => { if (getState().mode !== "raw") toggleMode(); });
 
   toggleWrap.append(previewBtn, rawBtn);
-  bar.appendChild(toggleWrap);
+
+  const rightSpacer = document.createElement("div");
+  rightSpacer.className = "toolbar-spacer toolbar-spacer-right";
+  rightSpacer.appendChild(toggleWrap);
+  bar.appendChild(rightSpacer);
 
   // Window dragging (decorations: false requires explicit startDragging in Tauri v2)
   bar.addEventListener("mousedown", (e) => {
