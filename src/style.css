@@ -328,7 +328,11 @@ body, #app {
 }
 
 .content-pane .cm-editor .cm-gutters {
-  display: none;
+  background: transparent;
+  border-right: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding-right: 8px;
 }
 
 .content-pane .cm-editor.cm-focused {

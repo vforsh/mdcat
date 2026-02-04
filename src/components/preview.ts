@@ -1,5 +1,6 @@
 import { getState, subscribe, toggleMode } from "../state";
 import { renderMarkdown } from "../utils/markdown";
+import { goToLine } from "./editor";
 import "github-markdown-css/github-markdown-light.css";
 import "highlight.js/styles/github.css";
 
@@ -16,8 +17,17 @@ export function createPreview(): HTMLElement {
   wrap.className = "preview-wrap markdown-body";
   container.appendChild(wrap);
 
-  container.addEventListener("dblclick", () => {
-    if (getState().mode === "preview") toggleMode();
+  container.addEventListener("dblclick", (e) => {
+    if (getState().mode !== "preview") return;
+
+    // Find closest element with data-source-line
+    const target = e.target as HTMLElement;
+    const lineEl = target.closest("[data-source-line]") as HTMLElement | null;
+    const line = lineEl ? parseInt(lineEl.dataset.sourceLine || "1", 10) : 1;
+
+    toggleMode();
+    // Wait for editor to render, then jump to line
+    requestAnimationFrame(() => goToLine(line));
   });
 
   subscribe(render);

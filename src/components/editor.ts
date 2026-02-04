@@ -1,7 +1,26 @@
-import { EditorView, basicSetup } from "codemirror";
+import { EditorView } from "codemirror";
+import {
+  lineNumbers,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  drawSelection,
+  dropCursor,
+  rectangularSelection,
+  crosshairCursor,
+  highlightActiveLine,
+} from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import {
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  bracketMatching,
+  indentOnInput,
+} from "@codemirror/language";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { getState, setContent, subscribe } from "../state";
 
@@ -28,7 +47,29 @@ function initView(doc: string) {
   const state = EditorState.create({
     doc,
     extensions: [
-      basicSetup,
+      // basicSetup minus foldGutter
+      lineNumbers(),
+      highlightActiveLineGutter(),
+      highlightSpecialChars(),
+      history(),
+      drawSelection(),
+      dropCursor(),
+      EditorState.allowMultipleSelections.of(true),
+      indentOnInput(),
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      bracketMatching(),
+      closeBrackets(),
+      rectangularSelection(),
+      crosshairCursor(),
+      highlightActiveLine(),
+      highlightSelectionMatches(),
+      keymap.of([
+        ...closeBracketsKeymap,
+        ...defaultKeymap,
+        ...searchKeymap,
+        ...historyKeymap,
+      ]),
+      // App-specific
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
@@ -36,7 +77,6 @@ function initView(doc: string) {
           setContent(update.state.doc.toString());
         }
       }),
-      keymap.of([]),
       EditorView.theme({
         "&": { height: "100%" },
         ".cm-scroller": { overflow: "auto" },
@@ -71,4 +111,18 @@ function render(state: ReturnType<typeof getState>) {
 
 export function getEditorContent(): string {
   return view?.state.doc.toString() || "";
+}
+
+/** Move cursor to a specific line (1-indexed) and scroll it into view */
+export function goToLine(line: number): void {
+  if (!view) return;
+  const doc = view.state.doc;
+  const lineCount = doc.lines;
+  const targetLine = Math.max(1, Math.min(line, lineCount));
+  const lineInfo = doc.line(targetLine);
+  view.dispatch({
+    selection: { anchor: lineInfo.from },
+    scrollIntoView: true,
+  });
+  view.focus();
 }
