@@ -20,3 +20,7 @@ export function saveFile(path: string, content: string): Promise<void> {
 export function getOpenedFile(): Promise<string | null> {
   return invoke("get_opened_file");
 }
+
+export function setCurrentRoot(root: string): Promise<void> {
+  return invoke("set_current_root", { root });
+}

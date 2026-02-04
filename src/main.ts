@@ -1,6 +1,5 @@
-import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getContext, getFileTree, readFile, saveFile, getOpenedFile } from "./ipc";
+import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot } from "./ipc";
 import { getState, setFile, setContext, setTree, toggleMode, markClean } from "./state";
 import { createLayout } from "./components/layout";
 import { startWatching } from "./utils/watcher";
@@ -17,6 +16,7 @@ async function openFile(path: string) {
 
   const ctx = await getContext(path);
   setContext(ctx);
+  await setCurrentRoot(ctx.root);
 
   const tree = await getFileTree(ctx.root);
   setTree(tree);
@@ -130,17 +130,15 @@ document.addEventListener("keydown", (e) => {
 
 // --- CLI arg / "Open With" ---
 
-async function init() {
-  // Check if a file was passed via CLI or "Open With"
-  const opened = await getOpenedFile();
-  if (opened) {
-    await openFile(opened);
+// Poll for pending files (macOS "Open With")
+setInterval(async () => {
+  try {
+    const pending = await getOpenedFile();
+    if (pending) {
+      console.log("[mdcat] opening pending file:", pending);
+      await openFile(pending);
+    }
+  } catch (err) {
+    console.error("[mdcat] polling error:", err);
   }
-
-  // Listen for macOS "Open With" events arriving after launch
-  await listen<string>("open-file", async (event) => {
-    await openFile(event.payload);
-  });
-}
-
-init();
+}, 500);
