@@ -4,7 +4,7 @@ mod instance_registry;
 
 use commands::{CurrentRoot, OpenedFile};
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_cli::CliExt;
 
 pub fn run() {
@@ -54,9 +54,18 @@ pub fn run() {
             }
 
             if let Some(path) = file_path {
+                // Store for get_opened_file fallback
                 let state = app.state::<OpenedFile>();
                 let mut lock = state.0.lock().unwrap();
-                *lock = Some(path);
+                *lock = Some(path.clone());
+
+                // Emit event after window is ready
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    // Small delay to ensure frontend listener is ready
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    let _ = app_handle.emit("open-file", &path);
+                });
             }
 
             Ok(())
@@ -93,12 +102,15 @@ pub fn run() {
                         eprintln!("[mdcat] same_root={}", same_root);
 
                         if same_root || current_root.is_none() {
-                            // Update opened file state
+                            // Store in state (fallback for fresh launch)
                             let state = app.state::<OpenedFile>();
                             if let Ok(mut lock) = state.0.lock() {
-                                eprintln!("[mdcat] storing pending file: {}", path_str);
+                                eprintln!("[mdcat] storing file in state: {}", path_str);
                                 *lock = Some(path_str.clone());
                             }
+                            // Also emit event (for when app is already running)
+                            eprintln!("[mdcat] emitting open-file event: {}", path_str);
+                            let _ = app.emit("open-file", &path_str);
                             // Focus window
                             if let Some(window) = app.get_webview_window("main") {
                                 let _ = window.set_focus();

@@ -1,4 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot } from "./ipc";
 import { getState, setFile, setContext, setTree, toggleMode, markClean } from "./state";
 import { createLayout } from "./components/layout";
@@ -11,28 +12,31 @@ createLayout(app, openFile);
 // --- File operations ---
 
 async function openFile(path: string) {
-  const content = await readFile(path);
+  // Phase 1: Load content + context in parallel (critical path)
+  const [content, ctx] = await Promise.all([readFile(path), getContext(path)]);
+
+  // Render preview immediately
   setFile(path, content);
-
-  const ctx = await getContext(path);
   setContext(ctx);
-  await setCurrentRoot(ctx.root);
 
-  const tree = await getFileTree(ctx.root);
-  setTree(tree);
-
-  // Watch for external changes
-  await startWatching(path, async () => {
-    const state = getState();
-    // Don't reload if user has unsaved edits
-    if (state.dirty) return;
-    const fresh = await readFile(path);
-    setFile(path, fresh);
-  });
-
-  // Update window title
+  // Update window title early
   const name = path.split("/").pop() || "mdcat";
   document.title = `${name} — mdcat`;
+
+  // Phase 2: Defer non-critical work (tree, watcher, root registration)
+  queueMicrotask(async () => {
+    await setCurrentRoot(ctx.root);
+    const tree = await getFileTree(ctx.root);
+    setTree(tree);
+
+    // Watch for external changes
+    await startWatching(path, async () => {
+      const state = getState();
+      if (state.dirty) return;
+      const fresh = await readFile(path);
+      setFile(path, fresh);
+    });
+  });
 }
 
 async function handleSave() {
@@ -130,15 +134,16 @@ document.addEventListener("keydown", (e) => {
 
 // --- CLI arg / "Open With" ---
 
-// Poll for pending files (macOS "Open With")
-setInterval(async () => {
-  try {
-    const pending = await getOpenedFile();
-    if (pending) {
-      console.log("[mdcat] opening pending file:", pending);
-      await openFile(pending);
-    }
-  } catch (err) {
-    console.error("[mdcat] polling error:", err);
+// Listen for file-open events from Rust (instant, no polling)
+listen<string>("open-file", (event) => {
+  console.log("[mdcat] open-file event:", event.payload);
+  openFile(event.payload);
+});
+
+// Check for initial file (CLI arg or queued before listener ready)
+getOpenedFile().then((pending) => {
+  if (pending) {
+    console.log("[mdcat] initial file:", pending);
+    openFile(pending);
   }
-}, 500);
+});
