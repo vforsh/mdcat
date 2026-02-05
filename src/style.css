@@ -177,6 +177,7 @@ body, #app {
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
+  outline: none;
 }
 
 /* Resize handle */
@@ -231,6 +232,11 @@ body, #app {
 
 .tree-item:hover {
   background: var(--hover-bg);
+}
+
+.tree-item.focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .tree-item.active {

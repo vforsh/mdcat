@@ -22,6 +22,8 @@ export function createFileTree(selectHandler: (path: string) => void): HTMLEleme
 
   treeWrap = document.createElement("div");
   treeWrap.className = "sidebar-tree";
+  treeWrap.tabIndex = 0;
+  treeWrap.addEventListener("keydown", handleTreeKeydown);
   container.appendChild(treeWrap);
 
   subscribe(render);
@@ -138,6 +140,8 @@ function renderDir(
 
   const item = document.createElement("div");
   item.className = "tree-item";
+  item.dataset.path = node.path;
+  item.dataset.type = "dir";
   item.style.paddingLeft = `${8 + depth * 16}px`;
 
   const chevron = document.createElement("span");
@@ -195,6 +199,8 @@ function renderFile(
 ) {
   const item = document.createElement("div");
   item.className = "tree-item";
+  item.dataset.path = node.path;
+  item.dataset.type = "file";
   if (node.path === activePath) item.classList.add("active");
   item.style.paddingLeft = `${8 + depth * 16}px`;
 
@@ -226,6 +232,103 @@ function renderFile(
   });
 
   parent.appendChild(item);
+}
+
+// --- Keyboard navigation ---
+
+function getVisibleItems(): HTMLElement[] {
+  return Array.from(treeWrap.querySelectorAll<HTMLElement>(".tree-item")).filter((el) => {
+    // Exclude items inside collapsed directories
+    const parent = el.parentElement;
+    if (parent && parent.classList.contains("tree-dir-children") && parent.classList.contains("collapsed")) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function getFocusedItem(): HTMLElement | null {
+  return treeWrap.querySelector<HTMLElement>(".tree-item.focused");
+}
+
+function setFocusedItem(item: HTMLElement) {
+  getFocusedItem()?.classList.remove("focused");
+  item.classList.add("focused");
+  item.scrollIntoView({ block: "nearest" });
+}
+
+function handleTreeKeydown(e: KeyboardEvent) {
+  // Don't handle keys when an input is focused (rename/new file)
+  if ((e.target as HTMLElement).tagName === "INPUT") return;
+
+  const items = getVisibleItems();
+  if (items.length === 0) return;
+
+  let focused = getFocusedItem();
+  let idx = focused ? items.indexOf(focused) : -1;
+
+  switch (e.key) {
+    case "ArrowDown": {
+      e.preventDefault();
+      const next = idx < items.length - 1 ? idx + 1 : 0;
+      setFocusedItem(items[next]);
+      break;
+    }
+    case "ArrowUp": {
+      e.preventDefault();
+      const prev = idx > 0 ? idx - 1 : items.length - 1;
+      setFocusedItem(items[prev]);
+      break;
+    }
+    case "ArrowRight": {
+      e.preventDefault();
+      if (!focused) break;
+      if (focused.dataset.type === "dir") {
+        const childWrap = focused.nextElementSibling as HTMLElement;
+        if (childWrap?.classList.contains("collapsed")) {
+          // Expand
+          focused.click();
+        } else {
+          // Already expanded — move into first child
+          const updated = getVisibleItems();
+          const newIdx = updated.indexOf(focused);
+          if (newIdx < updated.length - 1) {
+            setFocusedItem(updated[newIdx + 1]);
+          }
+        }
+      }
+      break;
+    }
+    case "ArrowLeft": {
+      e.preventDefault();
+      if (!focused) break;
+      if (focused.dataset.type === "dir") {
+        const childWrap = focused.nextElementSibling as HTMLElement;
+        if (childWrap && !childWrap.classList.contains("collapsed")) {
+          // Collapse
+          focused.click();
+          break;
+        }
+      }
+      // Move to parent directory
+      const parentChildren = focused.parentElement;
+      if (parentChildren?.classList.contains("tree-dir-children")) {
+        const parentDir = parentChildren.previousElementSibling as HTMLElement;
+        if (parentDir?.classList.contains("tree-item")) {
+          setFocusedItem(parentDir);
+        }
+      }
+      break;
+    }
+    case "Enter":
+    case " ": {
+      e.preventDefault();
+      focused?.click();
+      break;
+    }
+    default:
+      return; // Don't prevent default for other keys
+  }
 }
 
 // --- Context menus ---
