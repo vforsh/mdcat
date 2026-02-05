@@ -45,6 +45,32 @@ pub fn save_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn create_file(path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if let Some(parent) = p.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directories: {}", e))?;
+    }
+    std::fs::write(&p, "").map_err(|e| format!("Failed to create {}: {}", path, e))
+}
+
+#[tauri::command]
+pub fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    let new_p = PathBuf::from(&new_path);
+    if let Some(parent) = new_p.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directories: {}", e))?;
+    }
+    std::fs::rename(&old_path, &new_path)
+        .map_err(|e| format!("Failed to rename {} → {}: {}", old_path, new_path, e))
+}
+
+#[tauri::command]
+pub fn delete_file(path: String) -> Result<(), String> {
+    std::fs::remove_file(&path).map_err(|e| format!("Failed to delete {}: {}", path, e))
+}
+
+#[tauri::command]
 pub fn get_opened_file(state: State<'_, OpenedFile>) -> Option<String> {
     // First check internal state
     if let Some(file) = state.0.lock().ok()?.take() {

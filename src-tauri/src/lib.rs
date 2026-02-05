@@ -25,6 +25,9 @@ pub fn run() {
             commands::get_opened_file,
             commands::set_current_root,
             commands::get_current_root,
+            commands::create_file,
+            commands::rename_file,
+            commands::delete_file,
         ])
         .setup(|app| {
             // Try tauri-plugin-cli first

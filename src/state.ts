@@ -93,3 +93,10 @@ export function closeSearch() {
   state.search.totalMatches = 0;
   notify();
 }
+
+export function clearFile() {
+  state.filePath = null;
+  state.content = "";
+  state.dirty = false;
+  notify();
+}

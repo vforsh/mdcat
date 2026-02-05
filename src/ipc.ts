@@ -24,3 +24,15 @@ export function getOpenedFile(): Promise<string | null> {
 export function setCurrentRoot(root: string): Promise<void> {
   return invoke("set_current_root", { root });
 }
+
+export function createFile(path: string): Promise<void> {
+  return invoke("create_file", { path });
+}
+
+export function renameFile(oldPath: string, newPath: string): Promise<void> {
+  return invoke("rename_file", { oldPath, newPath });
+}
+
+export function deleteFile(path: string): Promise<void> {
+  return invoke("delete_file", { path });
+}

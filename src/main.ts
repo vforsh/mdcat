@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot } from "./ipc";
 import { getState, setFile, setContext, setTree, toggleMode, markClean, toggleSearch } from "./state";
 import { createLayout } from "./components/layout";
+import { renameActiveFile } from "./components/file-tree";
 import { startWatching } from "./utils/watcher";
 
 const app = document.getElementById("app")!;
@@ -134,6 +135,11 @@ document.addEventListener("keydown", (e) => {
   if (meta && e.key === "f") {
     e.preventDefault();
     toggleSearch();
+  }
+
+  if (e.key === "F2") {
+    e.preventDefault();
+    renameActiveFile();
   }
 });
 

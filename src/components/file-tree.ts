@@ -1,5 +1,7 @@
 import { FileNode } from "../types";
-import { getState, subscribe } from "../state";
+import { getState, subscribe, clearFile, setTree } from "../state";
+import { getFileTree, createFile, renameFile, deleteFile } from "../ipc";
+import { showContextMenu, MenuItem } from "./context-menu";
 import * as icons from "../utils/icons";
 
 let container: HTMLElement;
@@ -30,8 +32,28 @@ export function createFileTree(selectHandler: (path: string) => void): HTMLEleme
 
 function render(state: ReturnType<typeof getState>) {
   const dirName = state.context?.root.split("/").pop() ?? "";
-  header.textContent = dirName;
-  header.style.display = dirName ? "block" : "none";
+
+  // Rebuild header with label + "+" button
+  header.innerHTML = "";
+  header.style.display = dirName ? "flex" : "none";
+
+  const label = document.createElement("span");
+  label.className = "sidebar-header-label";
+  label.textContent = dirName;
+  header.appendChild(label);
+
+  if (dirName) {
+    const addBtn = document.createElement("button");
+    addBtn.className = "sidebar-header-btn";
+    addBtn.title = "New file";
+    addBtn.appendChild(icons.plus(14));
+    addBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const root = state.context?.root;
+      if (root) showNewFileInput(treeWrap, root, 0, true);
+    });
+    header.appendChild(addBtn);
+  }
 
   treeWrap.innerHTML = "";
   if (state.tree.length === 0) return;
@@ -157,6 +179,12 @@ function renderDir(
     folderIcon.innerHTML = "";
     folderIcon.appendChild(collapsed ? icons.folder() : icons.folderOpen());
   });
+
+  item.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDirContextMenu(e.clientX, e.clientY, node, childWrap, depth);
+  });
 }
 
 function renderFile(
@@ -191,5 +219,295 @@ function renderFile(
     if (onSelect) onSelect(node.path);
   });
 
+  item.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showFileContextMenu(e.clientX, e.clientY, node, item);
+  });
+
   parent.appendChild(item);
+}
+
+// --- Context menus ---
+
+function showFileContextMenu(x: number, y: number, node: FileNode, item: HTMLElement) {
+  const items: MenuItem[] = [
+    {
+      label: "Rename",
+      icon: icons.pencil(14),
+      action: () => startRename(node, item),
+    },
+    {
+      label: "Delete",
+      icon: icons.trash(14),
+      danger: true,
+      action: () => handleDelete(node),
+    },
+  ];
+  showContextMenu(x, y, items);
+}
+
+function showDirContextMenu(
+  x: number, y: number, node: FileNode,
+  childWrap: HTMLElement, depth: number,
+) {
+  const items: MenuItem[] = [
+    {
+      label: "New File",
+      icon: icons.plus(14),
+      action: () => {
+        // Expand directory if collapsed
+        if (childWrap.classList.contains("collapsed")) {
+          childWrap.classList.remove("collapsed");
+          manualExpanded.add(node.path);
+        }
+        showNewFileInput(childWrap, node.path, depth + 1, true);
+      },
+    },
+    {
+      label: "Rename",
+      icon: icons.pencil(14),
+      action: () => {
+        // For directories, we find the tree-item element
+        const dirItem = childWrap.previousElementSibling as HTMLElement;
+        if (dirItem) startRename(node, dirItem);
+      },
+    },
+    {
+      label: "Delete",
+      icon: icons.trash(14),
+      danger: true,
+      action: () => handleDeleteDir(node),
+    },
+  ];
+  showContextMenu(x, y, items);
+}
+
+// --- Inline rename ---
+
+function startRename(node: FileNode, item: HTMLElement) {
+  const label = item.querySelector(".tree-item-label") as HTMLElement;
+  if (!label) return;
+
+  const input = document.createElement("input");
+  input.className = "tree-item-input";
+  input.value = node.name;
+  input.type = "text";
+
+  label.replaceWith(input);
+  input.focus();
+  // Select filename without extension
+  const dotIdx = node.name.lastIndexOf(".");
+  input.setSelectionRange(0, dotIdx > 0 ? dotIdx : node.name.length);
+
+  let committed = false;
+
+  async function commit() {
+    if (committed) return;
+    committed = true;
+
+    const newName = input.value.trim();
+    if (!newName || newName === node.name) {
+      // Cancel — restore label
+      const restored = document.createElement("span");
+      restored.className = "tree-item-label";
+      restored.textContent = node.name;
+      input.replaceWith(restored);
+      return;
+    }
+
+    const parentDir = node.path.substring(0, node.path.lastIndexOf("/"));
+    const newPath = `${parentDir}/${newName}`;
+
+    try {
+      await renameFile(node.path, newPath);
+      const state = getState();
+      // If we renamed the active file, reopen it at new path
+      if (state.filePath === node.path && onSelect) {
+        onSelect(newPath);
+      }
+      await refreshTree();
+    } catch (err) {
+      console.error("Rename failed:", err);
+      const restored = document.createElement("span");
+      restored.className = "tree-item-label";
+      restored.textContent = node.name;
+      input.replaceWith(restored);
+    }
+  }
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      committed = true; // prevent blur from committing
+      const restored = document.createElement("span");
+      restored.className = "tree-item-label";
+      restored.textContent = node.name;
+      input.replaceWith(restored);
+    }
+  });
+
+  input.addEventListener("blur", () => commit());
+}
+
+// --- Inline new file ---
+
+function showNewFileInput(
+  parentEl: HTMLElement, dirPath: string, depth: number,
+  prepend: boolean,
+) {
+  const item = document.createElement("div");
+  item.className = "tree-item";
+  item.style.paddingLeft = `${8 + depth * 16}px`;
+
+  // spacer (chevron width)
+  const spacer = document.createElement("span");
+  spacer.className = "icon chevron";
+  item.appendChild(spacer);
+
+  const fileIcon = document.createElement("span");
+  fileIcon.className = "icon";
+  fileIcon.appendChild(icons.fileText());
+  item.appendChild(fileIcon);
+
+  const input = document.createElement("input");
+  input.className = "tree-item-input";
+  input.type = "text";
+  input.placeholder = "filename.md";
+  item.appendChild(input);
+
+  if (prepend && parentEl.firstChild) {
+    parentEl.insertBefore(item, parentEl.firstChild);
+  } else {
+    parentEl.appendChild(item);
+  }
+
+  input.focus();
+
+  let committed = false;
+
+  async function commit() {
+    if (committed) return;
+    committed = true;
+
+    let name = input.value.trim();
+    if (!name) {
+      item.remove();
+      return;
+    }
+
+    // Auto-append .md if no extension
+    if (!name.includes(".")) {
+      name += ".md";
+    }
+
+    const fullPath = `${dirPath}/${name}`;
+
+    try {
+      await createFile(fullPath);
+      await refreshTree();
+      if (onSelect) onSelect(fullPath);
+    } catch (err) {
+      console.error("Create file failed:", err);
+      item.remove();
+    }
+  }
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      committed = true;
+      item.remove();
+    }
+  });
+
+  input.addEventListener("blur", () => commit());
+}
+
+// --- Delete ---
+
+async function handleDelete(node: FileNode) {
+  try {
+    await deleteFile(node.path);
+    const state = getState();
+    if (state.filePath === node.path) {
+      clearFile();
+      document.title = "mdcat";
+    }
+    await refreshTree();
+  } catch (err) {
+    console.error("Delete failed:", err);
+  }
+}
+
+async function handleDeleteDir(node: FileNode) {
+  // Recursively collect all file paths in this directory
+  const files = collectFiles(node);
+  if (files.length === 0) return;
+
+  try {
+    for (const f of files) {
+      await deleteFile(f);
+    }
+    const state = getState();
+    if (state.filePath && files.includes(state.filePath)) {
+      clearFile();
+      document.title = "mdcat";
+    }
+    await refreshTree();
+  } catch (err) {
+    console.error("Delete directory failed:", err);
+  }
+}
+
+function collectFiles(node: FileNode): string[] {
+  if (!node.is_dir) return [node.path];
+  const result: string[] = [];
+  for (const child of node.children ?? []) {
+    result.push(...collectFiles(child));
+  }
+  return result;
+}
+
+// --- Public API ---
+
+/** Trigger inline rename on the currently active file (F2 shortcut). */
+export function renameActiveFile() {
+  const state = getState();
+  if (!state.filePath) return;
+
+  const activeItem = treeWrap.querySelector(".tree-item.active") as HTMLElement;
+  if (!activeItem) return;
+
+  // Find the matching FileNode
+  const node = findNode(state.tree, state.filePath);
+  if (node) startRename(node, activeItem);
+}
+
+function findNode(nodes: FileNode[], path: string): FileNode | null {
+  for (const n of nodes) {
+    if (n.path === path) return n;
+    if (n.is_dir && n.children) {
+      const found = findNode(n.children, path);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// --- Refresh ---
+
+async function refreshTree() {
+  const root = getState().context?.root;
+  if (!root) return;
+  const tree = await getFileTree(root);
+  setTree(tree);
 }
