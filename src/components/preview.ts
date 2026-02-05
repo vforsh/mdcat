@@ -1,3 +1,4 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { getState, subscribe, toggleMode } from "../state";
 import { SearchState } from "../types";
 import { renderMarkdown } from "../utils/markdown";
@@ -20,6 +21,15 @@ export function createPreview(): HTMLElement {
   wrap = document.createElement("div");
   wrap.className = "preview-wrap markdown-body";
   container.appendChild(wrap);
+
+  container.addEventListener("click", (e) => {
+    const anchor = (e.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
+    if (!anchor) return;
+    const href = anchor.getAttribute("href");
+    if (!href) return;
+    e.preventDefault();
+    openUrl(href);
+  });
 
   container.addEventListener("dblclick", (e) => {
     if (getState().mode !== "preview") return;

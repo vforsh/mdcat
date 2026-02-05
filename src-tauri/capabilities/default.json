@@ -23,6 +23,7 @@
     "cli:default",
     "cli:allow-cli-matches",
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "opener:default"
   ]
 }
