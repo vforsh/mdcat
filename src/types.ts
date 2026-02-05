@@ -12,6 +12,14 @@ export interface FileContext {
 
 export type ViewMode = "preview" | "raw";
 
+export interface SearchState {
+  query: string;
+  open: boolean;
+  caseSensitive: boolean;
+  currentIndex: number;
+  totalMatches: number;
+}
+
 export interface AppState {
   filePath: string | null;
   content: string;
@@ -19,4 +27,5 @@ export interface AppState {
   context: FileContext | null;
   tree: FileNode[];
   dirty: boolean;
+  search: SearchState;
 }

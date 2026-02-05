@@ -1,11 +1,15 @@
 import { getState, subscribe, toggleMode } from "../state";
+import { SearchState } from "../types";
 import { renderMarkdown } from "../utils/markdown";
+import { highlightDom, clearHighlightDom } from "../utils/search";
 import { goToLine } from "./editor";
 import "github-markdown-css/github-markdown-light.css";
 import "highlight.js/styles/github.css";
 
 let container: HTMLElement;
 let wrap: HTMLElement;
+let lastContent = "";
+let lastSearch = { open: false, query: "", index: -1, caseSensitive: false };
 
 export function createPreview(): HTMLElement {
   container = document.createElement("div");
@@ -43,8 +47,46 @@ function render(state: ReturnType<typeof getState>) {
 
   if (!state.filePath) {
     wrap.innerHTML = "";
+    lastContent = "";
     return;
   }
 
-  wrap.innerHTML = renderMarkdown(state.content);
+  // Only re-render markdown when content changes
+  if (state.content !== lastContent) {
+    wrap.innerHTML = renderMarkdown(state.content);
+    lastContent = state.content;
+    // Force highlight refresh after re-render
+    lastSearch = { open: false, query: "", index: -1, caseSensitive: false };
+  }
+
+  applySearchHighlights(state.search);
+}
+
+function applySearchHighlights(search: SearchState) {
+  const changed =
+    search.open !== lastSearch.open ||
+    search.query !== lastSearch.query ||
+    search.currentIndex !== lastSearch.index ||
+    search.caseSensitive !== lastSearch.caseSensitive;
+
+  if (!changed) return;
+
+  lastSearch = {
+    open: search.open,
+    query: search.query,
+    index: search.currentIndex,
+    caseSensitive: search.caseSensitive,
+  };
+
+  clearHighlightDom(wrap);
+
+  if (!search.open || !search.query) return;
+
+  highlightDom(wrap, search.query, search.caseSensitive, search.currentIndex);
+
+  // Scroll current match into view
+  const current = wrap.querySelector("mark.search-highlight.current");
+  if (current) {
+    current.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }

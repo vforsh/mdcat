@@ -17,7 +17,7 @@ import {
   indentOnInput,
 } from "@codemirror/language";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { search, searchKeymap, highlightSelectionMatches, SearchQuery, setSearchQuery } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
@@ -63,6 +63,9 @@ function initView(doc: string) {
       crosshairCursor(),
       highlightActiveLine(),
       highlightSelectionMatches(),
+      search({
+        createPanel: () => ({ dom: document.createElement("span"), top: true }),
+      }),
       keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,
@@ -107,6 +110,32 @@ function render(state: ReturnType<typeof getState>) {
     });
     suppressUpdate = false;
   }
+
+  // Sync search query → CM6
+  syncSearch(state);
+}
+
+let lastSearchQuery = "";
+let lastCaseSensitive = false;
+let lastSearchOpen = false;
+
+function syncSearch(state: ReturnType<typeof getState>) {
+  if (!view) return;
+
+  const s = state.search;
+  if (s.open === lastSearchOpen && s.query === lastSearchQuery && s.caseSensitive === lastCaseSensitive) {
+    return;
+  }
+  lastSearchOpen = s.open;
+  lastSearchQuery = s.query;
+  lastCaseSensitive = s.caseSensitive;
+
+  const query = new SearchQuery({
+    search: s.open ? s.query : "",
+    caseSensitive: s.caseSensitive,
+    literal: true,
+  });
+  view.dispatch({ effects: setSearchQuery.of(query) });
 }
 
 export function getEditorContent(): string {
@@ -114,7 +143,7 @@ export function getEditorContent(): string {
 }
 
 /** Move cursor to a specific line (1-indexed) and scroll it into view */
-export function goToLine(line: number): void {
+export function goToLine(line: number, focus = true): void {
   if (!view) return;
   const doc = view.state.doc;
   const lineCount = doc.lines;
@@ -124,5 +153,5 @@ export function goToLine(line: number): void {
     selection: { anchor: lineInfo.from },
     scrollIntoView: true,
   });
-  view.focus();
+  if (focus) view.focus();
 }

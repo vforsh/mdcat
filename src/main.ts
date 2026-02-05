@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot } from "./ipc";
-import { getState, setFile, setContext, setTree, toggleMode, markClean } from "./state";
+import { getState, setFile, setContext, setTree, toggleMode, markClean, toggleSearch } from "./state";
 import { createLayout } from "./components/layout";
 import { startWatching } from "./utils/watcher";
 
@@ -129,6 +129,11 @@ document.addEventListener("keydown", (e) => {
   if (meta && e.key === "0") {
     e.preventDefault();
     zoomReset();
+  }
+
+  if (meta && e.key === "f") {
+    e.preventDefault();
+    toggleSearch();
   }
 });
 

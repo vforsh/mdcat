@@ -59,3 +59,15 @@ export function copy(size = 15) {
 export function check(size = 15) {
   return svg('<path d="M20 6 9 17l-5-5"/>', size);
 }
+
+export function iconChevronUp(size = 15) {
+  return svg('<path d="m18 15-6-6-6 6"/>', size);
+}
+
+export function iconChevronDown(size = 15) {
+  return svg('<path d="m6 9 6 6 6-6"/>', size);
+}
+
+export function iconX(size = 15) {
+  return svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', size);
+}

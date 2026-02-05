@@ -1,4 +1,4 @@
-import { AppState, ViewMode, FileContext, FileNode } from "./types";
+import { AppState, ViewMode, FileContext, FileNode, SearchState } from "./types";
 
 type Listener = (state: AppState) => void;
 
@@ -11,6 +11,13 @@ const state: AppState = {
   context: null,
   tree: [],
   dirty: false,
+  search: {
+    query: "",
+    open: false,
+    caseSensitive: false,
+    currentIndex: 0,
+    totalMatches: 0,
+  },
 };
 
 function notify() {
@@ -61,5 +68,28 @@ export function setContext(ctx: FileContext) {
 
 export function setTree(tree: FileNode[]) {
   state.tree = tree;
+  notify();
+}
+
+export function setSearch(updates: Partial<SearchState>) {
+  Object.assign(state.search, updates);
+  notify();
+}
+
+export function toggleSearch() {
+  state.search.open = !state.search.open;
+  if (!state.search.open) {
+    state.search.query = "";
+    state.search.currentIndex = 0;
+    state.search.totalMatches = 0;
+  }
+  notify();
+}
+
+export function closeSearch() {
+  state.search.open = false;
+  state.search.query = "";
+  state.search.currentIndex = 0;
+  state.search.totalMatches = 0;
   notify();
 }

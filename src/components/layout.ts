@@ -2,7 +2,8 @@ import { getState, subscribe } from "../state";
 import { createToolbar } from "./toolbar";
 import { createFileTree } from "./file-tree";
 import { createPreview } from "./preview";
-import { createEditor } from "./editor";
+import { createEditor, goToLine } from "./editor";
+import { createSearchPanel } from "./search";
 
 export function createLayout(
   app: HTMLElement,
@@ -28,6 +29,17 @@ export function createLayout(
   contentPane.className = "content-pane";
   main.appendChild(contentPane);
 
+  // Search panel
+  const searchPanel = createSearchPanel((line) => {
+    const state = getState();
+    if (state.mode === "raw") {
+      goToLine(line, false);
+    } else {
+      scrollPreviewToLine(line);
+    }
+  });
+  contentPane.appendChild(searchPanel);
+
   // Empty state
   const empty = document.createElement("div");
   empty.className = "empty-state";
@@ -48,6 +60,13 @@ export function createLayout(
     empty.style.display = state.filePath ? "none" : "flex";
   });
   empty.style.display = getState().filePath ? "none" : "flex";
+}
+
+function scrollPreviewToLine(line: number) {
+  const el = document.querySelector(`[data-source-line="${line}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 function initResize(handle: HTMLElement, sidebar: HTMLElement) {
