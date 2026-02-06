@@ -1,8 +1,23 @@
 import { Marked, Token, Tokens, TokensList } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 type TokenWithLine = Tokens.Generic & { _line?: number };
+
+/** Current base directory for resolving relative image paths */
+let currentBaseDir: string | null = null;
+
+function isRemoteUrl(src: string): boolean {
+  return /^https?:\/\/|^data:/i.test(src);
+}
+
+function resolveImageSrc(src: string): string {
+  if (isRemoteUrl(src) || !currentBaseDir) return src;
+  // Resolve relative path against the markdown file's directory
+  const abs = currentBaseDir + "/" + src.replace(/^\.\//, "");
+  return convertFileSrc(abs);
+}
 
 // Custom renderer that adds data-source-line attributes to block elements
 const renderer = {
@@ -66,6 +81,12 @@ const renderer = {
     const attr = line != null ? ` data-source-line="${line}"` : "";
     return `<hr${attr}>\n`;
   },
+  image(token: Tokens.Image): string {
+    const src = resolveImageSrc(token.href);
+    const alt = token.text ? ` alt="${escapeHtml(token.text)}"` : "";
+    const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
+    return `<img src="${src}"${alt}${title}>`;
+  },
 };
 
 const marked = new Marked(
@@ -118,7 +139,24 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function renderMarkdown(source: string): string {
+/** Rewrite src attributes in raw HTML <img> tags */
+function rewriteHtmlImages(html: string): string {
+  if (!currentBaseDir) return html;
+  return html.replace(
+    /(<img\s[^>]*?\bsrc=["'])([^"']+)(["'])/gi,
+    (match, pre, src, post) => {
+      if (isRemoteUrl(src)) return match;
+      // Skip already-resolved asset:// URLs
+      if (src.startsWith("asset:") || src.startsWith("http://asset.localhost")) return match;
+      const resolved = resolveImageSrc(src);
+      return pre + resolved + post;
+    },
+  );
+}
+
+export function renderMarkdown(source: string, baseDir?: string | null): string {
+  currentBaseDir = baseDir ?? null;
+
   let frontmatterHtml = "";
   let body = source;
   let startLine = 1;
@@ -136,5 +174,11 @@ export function renderMarkdown(source: string): string {
   const tokens = marked.lexer(body);
   assignLineNumbers(tokens, body, startLine);
 
-  return frontmatterHtml + marked.parser(tokens);
+  let html = frontmatterHtml + marked.parser(tokens);
+
+  // Post-process raw HTML <img> tags that marked passes through as-is
+  html = rewriteHtmlImages(html);
+
+  currentBaseDir = null;
+  return html;
 }

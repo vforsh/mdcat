@@ -61,9 +61,10 @@ function render(state: ReturnType<typeof getState>) {
     return;
   }
 
-  // Only re-render markdown when content changes
+  // Only re-render markdown when content or file changes
   if (state.content !== lastContent) {
-    wrap.innerHTML = renderMarkdown(state.content);
+    const baseDir = state.filePath ? state.filePath.replace(/\/[^/]+$/, "") : null;
+    wrap.innerHTML = renderMarkdown(state.content, baseDir);
     lastContent = state.content;
     // Force highlight refresh after re-render
     lastSearch = { open: false, query: "", index: -1, caseSensitive: false };
