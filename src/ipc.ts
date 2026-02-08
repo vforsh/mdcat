@@ -36,3 +36,11 @@ export function renameFile(oldPath: string, newPath: string): Promise<void> {
 export function deleteFile(path: string): Promise<void> {
   return invoke("delete_file", { path });
 }
+
+export function watchFile(path: string): Promise<void> {
+  return invoke("watch_file", { path });
+}
+
+export function unwatchFile(): Promise<void> {
+  return invoke("unwatch_file");
+}

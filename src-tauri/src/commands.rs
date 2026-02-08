@@ -1,4 +1,5 @@
 use crate::file_tree::{self, FileNode};
+use crate::file_watcher;
 use crate::instance_registry;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -109,4 +110,14 @@ pub fn set_current_root(root: String, state: State<'_, CurrentRoot>) {
 #[tauri::command]
 pub fn get_current_root(state: State<'_, CurrentRoot>) -> Option<String> {
     state.0.lock().ok()?.clone()
+}
+
+#[tauri::command]
+pub fn watch_file(path: String, app: tauri::AppHandle) -> Result<(), String> {
+    file_watcher::watch(&path, app)
+}
+
+#[tauri::command]
+pub fn unwatch_file() {
+    file_watcher::unwatch();
 }

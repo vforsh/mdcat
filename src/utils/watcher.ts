@@ -1,30 +1,31 @@
-import { watch } from "@tauri-apps/plugin-fs";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { watchFile, unwatchFile } from "../ipc";
 
 type WatchCallback = () => void;
 
 let currentPath: string | null = null;
-let stopFn: (() => void) | null = null;
+let unlisten: UnlistenFn | null = null;
 
 export async function startWatching(path: string, onChange: WatchCallback) {
   await stopWatching();
   currentPath = path;
 
-  const unwatchFn = await watch(path, (event) => {
-    // Any modification event triggers reload
-    if (event.type && typeof event.type === "object" && "modify" in event.type) {
-      onChange();
-    }
+  // Listen for file-changed events from Rust backend
+  unlisten = await listen("file-changed", () => {
+    onChange();
   });
 
-  stopFn = () => {
-    unwatchFn();
-  };
+  // Start Rust-side file watcher
+  await watchFile(path);
 }
 
 export async function stopWatching() {
-  if (stopFn) {
-    stopFn();
-    stopFn = null;
+  if (unlisten) {
+    unlisten();
+    unlisten = null;
+  }
+  if (currentPath) {
+    await unwatchFile();
   }
   currentPath = null;
 }

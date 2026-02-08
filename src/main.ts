@@ -25,7 +25,7 @@ async function openFile(path: string) {
   document.title = `${name} — mdcat`;
 
   // Phase 2: Defer non-critical work (tree, watcher, root registration)
-  queueMicrotask(async () => {
+  (async () => {
     await setCurrentRoot(ctx.root);
     const tree = await getFileTree(ctx.root);
     setTree(tree);
@@ -37,7 +37,7 @@ async function openFile(path: string) {
       const fresh = await readFile(path);
       setFile(path, fresh);
     });
-  });
+  })().catch((err) => console.error("[openFile] phase 2 failed:", err));
 }
 
 async function handleSave() {

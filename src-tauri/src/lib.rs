@@ -1,5 +1,6 @@
 mod commands;
 mod file_tree;
+mod file_watcher;
 mod instance_registry;
 
 use commands::{CurrentRoot, OpenedFile};
@@ -29,6 +30,8 @@ pub fn run() {
             commands::create_file,
             commands::rename_file,
             commands::delete_file,
+            commands::watch_file,
+            commands::unwatch_file,
         ])
         .setup(|app| {
             // Try tauri-plugin-cli first
