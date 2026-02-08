@@ -46,6 +46,22 @@ body, #app {
   flex-shrink: 0;
 }
 
+.toolbar-close-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background: #ff5f57;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.toolbar-close-btn:hover {
+  opacity: 0.8;
+}
+
 .toolbar-spacer {
   flex: 1;
   min-width: 0;

@@ -10,6 +10,17 @@ export function createToolbar(): HTMLElement {
   const bar = document.createElement("div");
   bar.className = "toolbar";
 
+  // Close button
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toolbar-close-btn";
+  closeBtn.setAttribute("aria-label", "Close window");
+  closeBtn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    getCurrentWindow().close();
+  });
+  bar.appendChild(closeBtn);
+
   // Left spacer (mirrors toggle width for centering)
   const leftSpacer = document.createElement("div");
   leftSpacer.className = "toolbar-spacer";
