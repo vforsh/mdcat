@@ -22,6 +22,7 @@ mdcat — Git-aware markdown viewer for macOS. Tauri v2 app with TypeScript fron
 - **Build app**: `npm run tauri build` → outputs `/src-tauri/target/release/bundle/macos/mdcat.app`
 - **Rust check**: `cd src-tauri && cargo check` for backend-only validation
 - **No test suite**: Project has no tests. Manual testing required.
+- **UI testing**: Use Peekaboo CLI for screenshot verification and UI automation. See [`docs/testing-with-peekaboo.md`](docs/testing-with-peekaboo.md).
 
 ---
 
@@ -55,7 +56,7 @@ src-tauri/
 └── Cargo.toml           # Rust deps
 
 assets/icons/            # App icons (32, 128, @2x, .icns, .ico)
-docs/                    # Guides (macos-icon.md)
+docs/                    # Guides (macos-icon.md, testing-with-peekaboo.md)
 ```
 
 ---
