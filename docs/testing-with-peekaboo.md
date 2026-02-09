@@ -10,34 +10,68 @@ Guide for AI coding agents to verify UI changes in mdcat using [Peekaboo](https:
 - Peekaboo installed: `brew install steipete/tap/peekaboo`
 - Permissions granted: Screen Recording + Accessibility (`peekaboo permissions status`)
 
+## Tauri-Specific Limitations
+
+mdcat is a Tauri v2 app (WebKit webview). Several Peekaboo features behave differently than with native apps:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `peekaboo see --app` | Works | Returns element IDs (`elem_N` format) and screenshot |
+| `peekaboo image --app` | Fails | Times out on Tauri apps |
+| `peekaboo image --pid` | Fails | Also times out |
+| `peekaboo image --mode screen` | Works | Full-screen capture only |
+| `screencapture -l <windowID>` | Works | Best for window-only screenshots |
+| `peekaboo hotkey` | Mostly works | Fails for `=`, `-`, `0` keys — use `osascript` |
+| `peekaboo click --on <id>` | Works | Must use element ID, not text query |
+| `peekaboo click "text"` | Fails | Times out on Tauri |
+| `peekaboo type` | Unreliable | Keystrokes often don't reach webview inputs |
+| `peekaboo press` | Works | For special keys (enter, escape, f2, arrows) |
+| `peekaboo image --analyze` | Works | AI vision analysis via `--mode screen` |
+
+**Key takeaway**: Use `peekaboo see` for element detection, `hotkey`/`press` for keyboard actions, `osascript` for keystrokes that peekaboo can't handle, and `screencapture -l` for clean window screenshots.
+
+---
+
 ## Finding the App
 
-mdcat is a Tauri app. The process name is `mdcat`.
-
 ```bash
-# Confirm mdcat is running
+# Confirm mdcat is running and get its PID
 peekaboo list | grep -i mdcat
-
-# Get PID (needed if --app times out)
-peekaboo list apps --json-output | jq '.[] | select(.name | test("mdcat"; "i"))'
+# Look for the main process line, e.g.: "mdcat - PID: 91241 - Windows: 1"
 ```
-
-> **Timeout workaround**: Tauri apps may timeout with `--app "mdcat"`. If so, use `--pid <PID>` instead. Get the PID from `peekaboo list`. If `--pid` also times out, fall back to `screencapture -l <windowID>` (get window ID from `peekaboo list windows --app mdcat --include-details bounds`).
 
 ---
 
 ## Taking Screenshots
 
 ```bash
-# Annotated screenshot with element IDs (primary method)
-peekaboo see --app "mdcat" --annotate --path /tmp/mdcat-ui.png --json-output > /tmp/mdcat-ui.json
+# Method 1: peekaboo see (RECOMMENDED — also returns element IDs)
+peekaboo see --app "mdcat" --path /tmp/mdcat-ui.png --json-output > /tmp/mdcat-ui.json
 
-# Raw screenshot (no annotations)
-peekaboo image --app "mdcat" --retina --path /tmp/mdcat-screenshot.png
-
-# Fallback via native screencapture (always works)
-WINDOW_ID=$(peekaboo list windows --app mdcat --include-details bounds --json-output | jq '.[0].windowId')
+# Method 2: native screencapture (clean window-only shot, always works)
+WINDOW_ID=$(peekaboo list windows --app mdcat --include-details bounds,ids --json-output \
+  | jq '.data.windows[] | select(.title != "") | .windowID')
 screencapture -l "$WINDOW_ID" /tmp/mdcat-screenshot.png
+
+# Method 3: full-screen capture
+peekaboo image --mode screen --path /tmp/mdcat-screen.png
+
+# Method 4: AI-powered visual analysis
+peekaboo image --mode screen --path /tmp/mdcat-check.png \
+  --analyze "Is a markdown file loaded? What mode is the app in?"
+```
+
+> **Do NOT use** `peekaboo image --app "mdcat"` or `--pid` — they time out on Tauri.
+
+---
+
+## Focusing the App
+
+Peekaboo hotkeys go to whichever app is frontmost. Always focus mdcat first:
+
+```bash
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
 ```
 
 ---
@@ -59,40 +93,44 @@ screencapture -l "$WINDOW_ID" /tmp/mdcat-screenshot.png
 +------------+---------------------------------------------+
 ```
 
-Key CSS classes for `peekaboo see` element identification:
-- `.toolbar` — top bar (draggable)
-- `.toolbar-close-btn` — close button (top-left)
-- `.toolbar-filename` — centered filename display
-- `.dirty-indicator` — `[edited]` badge (visible when unsaved)
-- `.mode-toggle` — Preview/Edit toggle (top-right)
-- `.sidebar` — left file tree panel
-- `.sidebar-header` — folder name + "new file" button
-- `.sidebar-tree` — scrollable file list
-- `.tree-item` — individual file/folder row
-- `.tree-item.active` — currently selected file
-- `.content-pane` — main area (preview or editor)
-- `.preview-wrap.markdown-body` — rendered markdown
-- `.search-panel` — find bar (shown via ⌘F)
-- `.search-input` — search text field
-- `.resize-handle` — draggable sidebar resizer
-- `.empty-state` — "Open a markdown file" placeholder
+Common element IDs returned by `peekaboo see --app "mdcat" --json-output`:
+
+| Element | Typical ID | Label |
+|---------|-----------|-------|
+| Close button | `elem_5` | `"Close window"` |
+| Preview button | `elem_9` | `"Preview"` |
+| Edit button | `elem_10` | `"Edit"` |
+| New file button | `elem_12` | `"New file"` |
+| Search input | `elem_19` | `"Search..."` |
+| Case toggle (Aa) | `elem_21` | `"Aa"` |
+| Previous match | `elem_22` | `"Previous (Shift+Enter)"` |
+| Next match | `elem_23` | `"Next (Enter)"` |
+| Close search | `elem_24` | `"Close (Escape)"` |
+
+> Element IDs may shift when the UI changes. Always re-run `peekaboo see` to get fresh IDs.
 
 ---
 
 ## Common Actions
 
-### Open a File via Keyboard
+### Open a File via Dialog
 
 ```bash
-# Focus the app
-peekaboo hotkey cmd,tab   # if mdcat isn't focused
-
-# ⌘O opens the native file dialog
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
 peekaboo hotkey cmd,o
+sleep 1.5
 
-# Type the file path in the dialog and confirm
-peekaboo type "/path/to/file.md" --return
+# Navigate using the "Go to folder" sheet
+peekaboo type "/Users/vlad/dev/mdcat/AGENTS.md"
+peekaboo hotkey cmd,shift,g
+sleep 1
+peekaboo press enter   # select the path
+sleep 0.5
+peekaboo press enter   # confirm "Open"
 ```
+
+> The dialog flow is fragile. When possible, prefer opening files via the sidebar or CLI args.
 
 ### Open a File from the Sidebar
 
@@ -100,72 +138,64 @@ peekaboo type "/path/to/file.md" --return
 # Capture UI to find file tree elements
 peekaboo see --app "mdcat" --json-output > /tmp/ui.json
 
-# Click a file by its label text
-peekaboo click "README.md"
+# Find the target file element
+jq '.data.ui_elements[] | select(.label == "AGENTS.md")' /tmp/ui.json
 
-# Or click by element ID from the see output
-peekaboo click --on B5
+# Click by element ID
+peekaboo click --on elem_17
 ```
+
+> Text-based click (`peekaboo click "AGENTS.md"`) times out on Tauri. Always use `--on <id>`.
 
 ### Toggle Preview / Edit Mode
 
 ```bash
-# Via keyboard shortcut
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
 peekaboo hotkey cmd,e
-
-# Via toolbar buttons
-peekaboo click "Preview"
-peekaboo click "Edit"
 ```
 
-### Verify Mode State
+### Verify Current Mode
 
 ```bash
-# Screenshot and check which toggle button is active
 peekaboo see --app "mdcat" --json-output \
-  | jq '.data.ui_elements[] | select(.label | test("Preview|Edit"))'
+  | jq '[.data.ui_elements[] | select(.label == "Preview" or .label == "Edit")]'
 ```
 
-### Edit Content in Editor Mode
+Both buttons are always present. To determine active mode, take a screenshot and use `--analyze`:
 
 ```bash
-# Switch to edit mode first
-peekaboo hotkey cmd,e
-
-# Click in the editor area to focus it
-peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-peekaboo click --on <editor-element-id>
-
-# Type content
-peekaboo type "# New heading\n\nSome content here"
+peekaboo image --mode screen --path /tmp/mode-check.png \
+  --analyze "Is the app in preview mode or edit mode? Which toggle button appears active/highlighted?"
 ```
 
 ### Save a File
 
 ```bash
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
 peekaboo hotkey cmd,s
-```
-
-### Verify Dirty State
-
-After editing, check for the `[edited]` indicator:
-
-```bash
-peekaboo see --app "mdcat" --json-output \
-  | jq '.data.ui_elements[] | select(.label | test("edited"))'
-
-# Or take a screenshot and visually inspect
-peekaboo image --app "mdcat" --path /tmp/mdcat-dirty.png
 ```
 
 ### Search (Find in File)
 
 ```bash
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
+
 # Open search panel
 peekaboo hotkey cmd,f
+sleep 0.5
 
-# Type search query
-peekaboo type "search term"
+# Click the search input to ensure focus (type alone won't reach the webview)
+peekaboo see --app "mdcat" --json-output > /tmp/ui.json
+SEARCH_ID=$(jq -r '.data.ui_elements[] | select(.label == "Search...") | .id' /tmp/ui.json)
+peekaboo click --on "$SEARCH_ID"
+sleep 0.3
+
+# Type search query via osascript (peekaboo type doesn't reach webview inputs)
+osascript -e 'tell application "System Events" to keystroke "pattern"'
+sleep 0.5
 
 # Navigate matches
 peekaboo press enter              # next match
@@ -175,93 +205,80 @@ peekaboo hotkey shift,enter       # previous match
 peekaboo press escape
 ```
 
-### Verify Search Results
-
-```bash
-# Check the match counter (e.g., "3 of 10")
-peekaboo see --app "mdcat" --json-output \
-  | jq '.data.ui_elements[] | select(.label | test("of \\d+"))'
-```
-
-### Toggle Case-Sensitive Search
-
-```bash
-# Open search, then click the "Aa" button
-peekaboo hotkey cmd,f
-peekaboo click "Aa"
-```
-
 ### Zoom
 
+Peekaboo can't send `=`, `-`, or `0` keys. Use `osascript`:
+
 ```bash
-peekaboo hotkey cmd,equal    # zoom in  (⌘+)
-peekaboo hotkey cmd,minus    # zoom out (⌘-)
-peekaboo hotkey cmd,0        # reset zoom
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
+
+# Zoom in (⌘+)
+osascript -e 'tell application "System Events" to keystroke "=" using command down'
+
+# Zoom out (⌘-)
+osascript -e 'tell application "System Events" to keystroke "-" using command down'
+
+# Reset zoom (⌘0)
+osascript -e 'tell application "System Events" to keystroke "0" using command down'
 ```
 
 ### Collapse/Expand Sidebar Folders
 
 ```bash
-# Click a folder name to toggle
-peekaboo click "docs"
-
-# Or use arrow keys after focusing the tree
+# Click a folder by element ID
 peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-# Click the sidebar tree to focus it
-peekaboo click --on <sidebar-tree-id>
-peekaboo press arrow-down
-peekaboo press arrow-right   # expand folder
-peekaboo press arrow-left    # collapse folder
+FOLDER_ID=$(jq -r '.data.ui_elements[] | select(.label == "docs") | .id' /tmp/ui.json)
+peekaboo click --on "$FOLDER_ID"
 ```
 
-### Create a New File
+### Click Sidebar Buttons (New File, etc.)
 
 ```bash
-# Click the "+" button in the sidebar header
 peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-peekaboo click --on <plus-button-id>
+NEW_FILE_ID=$(jq -r '.data.ui_elements[] | select(.label == "New file") | .id' /tmp/ui.json)
+peekaboo click --on "$NEW_FILE_ID"
+sleep 0.3
 
-# Type the filename and confirm
-peekaboo type "new-note.md" --return
+# Type filename via osascript (webview input)
+osascript -e 'tell application "System Events" to keystroke "new-note.md"'
+peekaboo press return
 ```
 
 ### Rename a File (F2)
 
 ```bash
-# Select a file in the sidebar first, then press F2
-peekaboo click "old-name.md"
+# Click a file in the sidebar first
+peekaboo click --on <file-elem-id>
+sleep 0.3
 peekaboo press f2
+sleep 0.3
 
-# Type the new name and confirm
-peekaboo type "new-name" --clear --return
+# Type new name via osascript
+osascript -e 'tell application "System Events" to keystroke "a" using command down'
+osascript -e 'tell application "System Events" to keystroke "new-name.md"'
+peekaboo press return
 ```
 
 ### Context Menu (Right-Click)
 
 ```bash
-# Right-click a file in the sidebar
 peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-peekaboo click --on <file-item-id> --right
+peekaboo click --on <file-elem-id> --right
+sleep 0.3
 
-# Then click a menu option
-peekaboo click "Rename"
-peekaboo click "Delete"
-```
-
-### Double-Click Preview to Jump to Editor
-
-```bash
-# Double-click a paragraph in preview mode to switch to editor at that line
-peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-peekaboo click --on <preview-element-id> --double
+# Re-scan to find context menu items
+peekaboo see --app "mdcat" --json-output > /tmp/ctx.json
+RENAME_ID=$(jq -r '.data.ui_elements[] | select(.label == "Rename") | .id' /tmp/ctx.json)
+peekaboo click --on "$RENAME_ID"
 ```
 
 ### Close the Window
 
 ```bash
 peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-# Click the close button (top-left red dot)
-peekaboo click --on <close-btn-id>
+CLOSE_ID=$(jq -r '.data.ui_elements[] | select(.label == "Close window") | .id' /tmp/ui.json)
+peekaboo click --on "$CLOSE_ID"
 ```
 
 ---
@@ -271,88 +288,82 @@ peekaboo click --on <close-btn-id>
 ### Verify a File Loaded Successfully
 
 ```bash
-# 1. Open a file
-peekaboo hotkey cmd,o
-peekaboo type "/path/to/test.md" --return
-sleep 1
+# 1. Screenshot
+peekaboo see --app "mdcat" --path /tmp/mdcat-loaded.png
 
-# 2. Check window title contains filename
-peekaboo list windows --app "mdcat" --include-details bounds --json-output \
-  | jq '.[0].title'
+# 2. AI check
+peekaboo image --mode screen --path /tmp/mdcat-verify.png \
+  --analyze "What file is open in the markdown viewer? Is content visible in the preview?"
 
-# 3. Screenshot to confirm content rendered
-peekaboo image --app "mdcat" --path /tmp/mdcat-loaded.png
+# 3. Check sidebar shows .md files
+peekaboo see --app "mdcat" --json-output \
+  | jq '[.data.ui_elements[] | select(.label | test("\\.md$"))] | length'
 ```
 
-### Verify Edit → Save Roundtrip
+### Verify Edit -> Save Roundtrip
 
 ```bash
-# 1. Open file, switch to edit mode
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
+
+# 1. Switch to edit mode
 peekaboo hotkey cmd,e
+sleep 0.5
 
-# 2. Make an edit
-peekaboo type "test edit"
+# 2. Screenshot before edit
+screencapture -l "$WINDOW_ID" /tmp/mdcat-before.png
 
-# 3. Confirm dirty indicator appears
-peekaboo image --app "mdcat" --path /tmp/mdcat-dirty.png
+# 3. Click editor area and type (via osascript for webview)
+osascript -e 'tell application "System Events" to keystroke "test edit"'
+sleep 0.5
 
-# 4. Save
+# 4. Screenshot — check for [edited] indicator
+screencapture -l "$WINDOW_ID" /tmp/mdcat-dirty.png
+
+# 5. Save and screenshot again
 peekaboo hotkey cmd,s
-
-# 5. Confirm dirty indicator disappears
-peekaboo image --app "mdcat" --path /tmp/mdcat-saved.png
+sleep 0.5
+screencapture -l "$WINDOW_ID" /tmp/mdcat-saved.png
 ```
 
 ### Verify Preview Renders Markdown
 
 ```bash
-# 1. Ensure preview mode is active
-peekaboo click "Preview"
+# Ensure preview mode, then analyze
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
+peekaboo hotkey cmd,e   # toggle if needed (ensure preview)
+sleep 0.5
 
-# 2. Screenshot the content area
-peekaboo image --app "mdcat" --path /tmp/mdcat-preview.png
-
-# 3. Optionally analyze with AI
-peekaboo image --app "mdcat" --analyze "Does the preview show rendered markdown with headings, lists, and code blocks?"
+peekaboo image --mode screen --path /tmp/mdcat-preview.png \
+  --analyze "Does the preview show rendered markdown with headings, lists, and code blocks? Or is it showing raw markdown source?"
 ```
 
 ### Verify Sidebar File Tree
 
 ```bash
-# 1. Open a file from a git repo
-# 2. Check sidebar shows directory structure
 peekaboo see --app "mdcat" --json-output \
-  | jq '[.data.ui_elements[] | select(.label | test("\\.md$"))]'
-
-# 3. Screenshot for visual check
-peekaboo image --app "mdcat" --path /tmp/mdcat-tree.png
+  | jq '[.data.ui_elements[] | select(.label | test("\\.(md|MD|markdown)$"))]'
 ```
 
 ### Verify Search Highlighting
 
 ```bash
-# 1. Open a file with known content
-# 2. Open search and type a term that appears multiple times
-peekaboo hotkey cmd,f
-peekaboo type "the"
-sleep 0.5
-
-# 3. Screenshot — matches should be highlighted in preview or editor
-peekaboo image --app "mdcat" --path /tmp/mdcat-search.png
-
-# 4. Navigate through matches
-peekaboo press enter
-sleep 0.3
-peekaboo image --app "mdcat" --path /tmp/mdcat-search-next.png
+# After typing a search term (see Search section above):
+peekaboo image --mode screen --path /tmp/mdcat-search.png \
+  --analyze "Is text highlighted in the document? How many search matches are shown in the counter?"
 ```
 
 ---
 
 ## Tips
 
-- **Always re-run `peekaboo see`** before clicking — element IDs are invalidated when UI changes.
-- **Add `sleep 0.5`–`sleep 1`** between actions that trigger re-renders (file open, mode switch, search).
-- **Use `--json-output` + `jq`** to programmatically find elements instead of hardcoding IDs.
-- **Use `peekaboo image --analyze "..."`** for AI-powered visual assertions when exact element inspection isn't enough.
-- **Prefer keyboard shortcuts** (⌘E, ⌘S, ⌘O, ⌘F, ⌘+/−/0, F2) over clicking — they're more reliable and don't depend on element IDs.
-- **Window title** reflects the open file (`filename.md — mdcat`) — use `peekaboo list windows` to verify.
+- **Always focus the app** with `osascript` before sending hotkeys — they go to the frontmost app.
+- **Always re-run `peekaboo see`** before clicking — element IDs change on every UI update.
+- **Use `osascript` for text input** — `peekaboo type` doesn't reliably reach Tauri webview inputs.
+- **Use `--analyze`** for visual assertions that can't be checked via element inspection.
+- **Add `sleep 0.3`–`sleep 1`** between actions that trigger re-renders.
+- **Use `jq`** to programmatically extract element IDs from `see` JSON output.
+- **Prefer keyboard shortcuts** (⌘E, ⌘S, ⌘O, ⌘F, F2) — they're more reliable than clicking.
+- **For zoom shortcuts** (⌘+/⌘-/⌘0), use `osascript` — Peekaboo can't send `=`, `-`, `0` keys.
+- **Window screenshots**: use `screencapture -l <windowID>` (get ID via `peekaboo list windows --app mdcat --include-details bounds,ids --json-output | jq '.data.windows[0].windowID'`).
