@@ -20,6 +20,7 @@ mdcat — Git-aware markdown viewer for macOS. Tauri v2 app with TypeScript fron
 - **Dev server**: `npm run tauri dev` — starts Vite (port 1420) + Tauri window with HMR
 - **Typecheck**: `npm run build` runs `tsc && vite build`. Use `npx tsc --noEmit` for quick type-only check.
 - **Build app**: `npm run tauri build` → outputs `/src-tauri/target/release/bundle/macos/mdcat.app`
+- **Install app (macOS)**: `npm run install:app` (or `mdcat install`) → installs `mdcat.app` to `/Applications` (falls back to `~/Applications`)
 - **Rust check**: `cd src-tauri && cargo check` for backend-only validation
 - **No test suite**: Project has no tests. Manual testing required.
 - **UI testing**: Use Peekaboo CLI for screenshot verification and UI automation. See [`docs/testing-with-peekaboo.md`](docs/testing-with-peekaboo.md).

@@ -7,10 +7,13 @@ import { $ } from "bun"
 const APP_PATH = resolve(import.meta.dirname, "src-tauri/target/release/bundle/macos/mdcat.app")
 const BIN_PATH = `${APP_PATH}/Contents/MacOS/mdcat`
 
+const INSTALL_SCRIPT = resolve(import.meta.dirname, "scripts/install-macos.sh")
+
 if (!existsSync(BIN_PATH)) {
 	console.error(`mdcat.app not found at ${APP_PATH}`)
 	console.error(`Run: npm run tauri build`)
-	process.exit(1)
+	// Allow "mdcat install" to run even if the app isn't built yet.
+	if (process.argv[2] !== "install") process.exit(1)
 }
 
 const arg = process.argv[2]
@@ -20,6 +23,27 @@ if (arg === "--help" || arg === "-h") {
 	console.log("       mdcat                 Open mdcat app")
 	console.log("       mdcat README.md       Open file in mdcat")
 	console.log("       mdcat .               Open directory (finds README.md or first .md)")
+	console.log("       mdcat install         Install mdcat.app to /Applications (or ~/Applications fallback)")
+	console.log("       mdcat install --user  Install to ~/Applications")
+	process.exit(0)
+}
+
+if (arg === "install") {
+	const args = process.argv.slice(3)
+
+	if (!existsSync(INSTALL_SCRIPT)) {
+		console.error(`Install script not found: ${INSTALL_SCRIPT}`)
+		process.exit(1)
+	}
+
+	// If app isn't built, be explicit.
+	if (!existsSync(APP_PATH)) {
+		console.error(`mdcat.app not found at ${APP_PATH}`)
+		console.error(`Run: npm run tauri build`)
+		process.exit(1)
+	}
+
+	await $`${INSTALL_SCRIPT} --source ${APP_PATH} ${args}`
 	process.exit(0)
 }
 

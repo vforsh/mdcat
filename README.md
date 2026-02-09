@@ -56,6 +56,16 @@ npm run tauri build
 # output: src-tauri/target/release/bundle/macos/mdcat.app
 ```
 
+## Install (macOS)
+
+```bash
+# installs to /Applications (falls back to ~/Applications if no permission)
+npm run install:app
+
+# or
+bun cli.ts install
+```
+
 ## Project Structure
 
 ```
