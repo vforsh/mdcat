@@ -48,3 +48,8 @@ export function unwatchFile(): Promise<void> {
 export function dumpStateToFile(stateJson: string): Promise<void> {
   return invoke("dump_state_to_file", { stateJson });
 }
+
+// Benchmark hook: no-op unless `MDCAT_BENCH_SENTINEL` is set in the host process environment.
+export function benchReady(): Promise<void> {
+  return invoke("bench_ready");
+}

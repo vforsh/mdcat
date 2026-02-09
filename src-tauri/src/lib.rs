@@ -5,8 +5,30 @@ mod instance_registry;
 
 use commands::{CurrentRoot, OpenedFile};
 use std::sync::Mutex;
+use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::{Emitter, Manager};
 use tauri_plugin_cli::CliExt;
+
+fn format_build_date_local(build_date_utc: &str) -> String {
+    use time::format_description::well_known::Rfc3339;
+    use time::macros::format_description;
+    use time::{OffsetDateTime, UtcOffset};
+
+    // Input is expected to be RFC3339 UTC: 2026-02-09T09:22:07Z
+    let dt_utc = match OffsetDateTime::parse(build_date_utc, &Rfc3339) {
+        Ok(dt) => dt,
+        Err(_) => return build_date_utc.to_string(),
+    };
+
+    let offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
+    let dt_local = dt_utc.to_offset(offset);
+
+    // Example: 2026-02-09 01:22:07 -0800
+    let fmt = format_description!("[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory][offset_minute]");
+    dt_local
+        .format(&fmt)
+        .unwrap_or_else(|_| build_date_utc.to_string())
+}
 
 pub fn run() {
     let opened_file: OpenedFile = OpenedFile(Mutex::new(None));
@@ -33,8 +55,47 @@ pub fn run() {
             commands::watch_file,
             commands::unwatch_file,
             commands::dump_state_to_file,
+            commands::bench_ready,
         ])
         .setup(|app| {
+            // Native menubar (macOS): show build date/sha in the application menu.
+            //
+            // Note: on macOS the global menubar can only contain Submenus at the root.
+            let handle = app.handle();
+            let build_date = option_env!("MDCAT_BUILD_DATE_UTC").unwrap_or("unknown");
+            let git_sha = option_env!("MDCAT_GIT_SHA").unwrap_or("unknown");
+            let build_label = if build_date == "unknown" {
+                format!("Build: unknown ({})", git_sha)
+            } else {
+                let local = format_build_date_local(build_date);
+                format!("Build: {} ({})", local, git_sha)
+            };
+
+            let build_item = MenuItem::with_id(handle, "build-info", build_label, false, None::<&str>)?;
+
+            let app_menu = SubmenuBuilder::new(handle, "mdcat")
+                .about(None)
+                .separator()
+                .item(&build_item)
+                .separator()
+                .quit()
+                .build()?;
+
+            let edit_menu = SubmenuBuilder::new(handle, "Edit")
+                .cut()
+                .copy()
+                .paste()
+                .separator()
+                .select_all()
+                .build()?;
+
+            let menu = MenuBuilder::new(handle)
+                .item(&app_menu)
+                .item(&edit_menu)
+                .build()?;
+
+            let _ = app.set_menu(menu);
+
             // Try tauri-plugin-cli first
             let mut file_path: Option<String> = None;
             if let Ok(matches) = app.cli().matches() {
@@ -66,14 +127,6 @@ pub fn run() {
                 let state = app.state::<OpenedFile>();
                 let mut lock = state.0.lock().unwrap();
                 *lock = Some(path.clone());
-
-                // Emit event after window is ready
-                let app_handle = app.handle().clone();
-                std::thread::spawn(move || {
-                    // Small delay to ensure frontend listener is ready
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                    let _ = app_handle.emit("open-file", &path);
-                });
             }
 
             Ok(())

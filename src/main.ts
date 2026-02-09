@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot, dumpStateToFile } from "./ipc";
+import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot, dumpStateToFile, benchReady } from "./ipc";
 import { getState, setFile, setContext, setTree, toggleMode, markClean, toggleSearch } from "./state";
 import { FileNode } from "./types";
 import { createLayout } from "./components/layout";
@@ -30,6 +30,10 @@ async function openFile(path: string) {
   document.title = title;
   getCurrentWindow().setTitle(title);
 
+  // Release benchmark hook: signal "first paint" after giving the browser a chance to paint
+  // the markdown content. No-op unless MDCAT_BENCH_SENTINEL is set.
+  scheduleBenchFirstPaint();
+
   // Phase 2: Defer non-critical work (tree, watcher, root registration)
   (async () => {
     await setCurrentRoot(ctx.root);
@@ -44,6 +48,18 @@ async function openFile(path: string) {
       setFile(path, fresh);
     });
   })().catch((err) => console.error("[openFile] phase 2 failed:", err));
+}
+
+let benchFirstPaintScheduled = false;
+function scheduleBenchFirstPaint() {
+  if (benchFirstPaintScheduled) return;
+  benchFirstPaintScheduled = true;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      benchReady().catch((err) => console.error("[benchReady] failed:", err));
+    });
+  });
 }
 
 async function handleSave() {

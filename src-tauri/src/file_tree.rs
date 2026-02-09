@@ -36,13 +36,11 @@ pub fn detect_git_root(path: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Resolve context root: git root or parent dir of the file.
-pub fn resolve_root(path: &Path) -> PathBuf {
-    detect_git_root(path).unwrap_or_else(|| {
+/// Resolve context root: provided git root or parent dir of the file.
+pub fn resolve_root(path: &Path, git_root: Option<PathBuf>) -> PathBuf {
+    git_root.unwrap_or_else(|| {
         if path.is_file() {
-            path.parent()
-                .unwrap_or(path)
-                .to_path_buf()
+            path.parent().unwrap_or(path).to_path_buf()
         } else {
             path.to_path_buf()
         }

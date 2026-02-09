@@ -19,7 +19,7 @@ pub fn get_context(path: String) -> Result<FileContext, String> {
     let p = PathBuf::from(&path);
     let git_root = file_tree::detect_git_root(&p);
     let is_git = git_root.is_some();
-    let root = file_tree::resolve_root(&p);
+    let root = file_tree::resolve_root(&p, git_root.clone());
     Ok(FileContext {
         root: root.to_string_lossy().to_string(),
         is_git,
@@ -128,4 +128,33 @@ pub fn dump_state_to_file(state_json: String) -> Result<(), String> {
     let path = dir.join("mdcat-state.json");
     std::fs::write(&path, &state_json)
         .map_err(|e| format!("Failed to write state dump: {}", e))
+}
+
+/// Benchmark hook: if `MDCAT_BENCH_SENTINEL` is set, write a sentinel file once the frontend decides
+/// "first paint" happened. No-op unless the env var is present.
+#[tauri::command]
+pub fn bench_ready() -> Result<(), String> {
+    let path = match std::env::var("MDCAT_BENCH_SENTINEL") {
+        Ok(p) if !p.is_empty() => p,
+        _ => return Ok(()),
+    };
+
+    let sentinel = PathBuf::from(path);
+    if let Some(parent) = sentinel.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let pid = std::process::id();
+    let ts_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+
+    let payload = format!("{{\"pid\":{},\"ts_ms\":{}}}\n", pid, ts_ms);
+
+    // Best-effort atomic write: write to temp file then rename.
+    let tmp = sentinel.with_extension("tmp");
+    std::fs::write(&tmp, payload)
+        .and_then(|_| std::fs::rename(&tmp, &sentinel))
+        .map_err(|e| format!("Failed to write bench sentinel {:?}: {}", sentinel, e))
 }

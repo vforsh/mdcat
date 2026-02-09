@@ -21,3 +21,12 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 walkdir = "2"
+time = { version = "0.3", features = ["formatting", "parsing", "local-offset", "macros"] }
+
+[profile.release]
+# Smaller/faster binaries. Startup gains are mostly on cold starts (less disk I/O).
+# Tradeoff: slower release builds.
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
