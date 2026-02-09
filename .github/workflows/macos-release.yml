@@ -1,0 +1,71 @@
+name: macos-build
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (Tauri)
+        run: npm run tauri build
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+
+          # DMG (configured in tauri.conf.json)
+          shopt -s nullglob
+          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+            cp -f "$dmg" artifacts/
+          done
+
+          # .app is a directory, zip it for upload/release assets
+          for app in src-tauri/target/release/bundle/macos/*.app; do
+            base="$(basename "$app")"
+            ditto -c -k --sequesterRsrc --keepParent "$app" "artifacts/${base}.zip"
+          done
+
+          ls -la artifacts
+
+      - name: Upload artifacts (CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdcat-macos
+          path: artifacts/*
+          if-no-files-found: error
+
+      - name: Create GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
