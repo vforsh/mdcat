@@ -34,10 +34,14 @@ export function showContextMenu(x: number, y: number, items: MenuItem[]) {
 
   const menu = document.createElement("div");
   menu.className = "context-menu";
+  menu.setAttribute("role", "menu");
+  menu.dataset.testid = "context-menu";
 
   for (const item of items) {
     const row = document.createElement("div");
     row.className = "context-menu-item";
+    row.setAttribute("role", "menuitem");
+    row.dataset.testid = `context-menu-${item.label.toLowerCase().replace(/\s+/g, "-")}`;
     if (item.danger) row.classList.add("danger");
 
     if (item.icon) row.appendChild(item.icon);

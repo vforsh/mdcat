@@ -44,3 +44,7 @@ export function watchFile(path: string): Promise<void> {
 export function unwatchFile(): Promise<void> {
   return invoke("unwatch_file");
 }
+
+export function dumpStateToFile(stateJson: string): Promise<void> {
+  return invoke("dump_state_to_file", { stateJson });
+}

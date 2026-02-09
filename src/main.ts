@@ -1,14 +1,18 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
-import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot } from "./ipc";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot, dumpStateToFile } from "./ipc";
 import { getState, setFile, setContext, setTree, toggleMode, markClean, toggleSearch } from "./state";
+import { FileNode } from "./types";
 import { createLayout } from "./components/layout";
 import { renameActiveFile } from "./components/file-tree";
 import { startWatching } from "./utils/watcher";
+import { exposeMdcatAPI } from "./utils/state-bridge";
 
 const app = document.getElementById("app")!;
 
 createLayout(app, openFile);
+exposeMdcatAPI();
 
 // --- File operations ---
 
@@ -22,7 +26,9 @@ async function openFile(path: string) {
 
   // Update window title early
   const name = path.split("/").pop() || "mdcat";
-  document.title = `${name} — mdcat`;
+  const title = `mdcat - ${name}`;
+  document.title = title;
+  getCurrentWindow().setTitle(title);
 
   // Phase 2: Defer non-critical work (tree, watcher, root registration)
   (async () => {
@@ -97,6 +103,36 @@ function zoomReset() {
   applyZoom();
 }
 
+// --- State dump ---
+
+function countFiles(nodes: FileNode[]): number {
+  let count = 0;
+  for (const n of nodes) {
+    if (n.is_dir && n.children) count += countFiles(n.children);
+    else count++;
+  }
+  return count;
+}
+
+async function handleStateDump() {
+  const state = getState();
+  const snapshot = {
+    filePath: state.filePath,
+    mode: state.mode,
+    dirty: state.dirty,
+    contentLength: state.content.length,
+    treeFileCount: countFiles(state.tree),
+    search: {
+      open: state.search.open,
+      query: state.search.query,
+      totalMatches: state.search.totalMatches,
+    },
+    context: state.context ? { root: state.context.root, is_git: state.context.is_git } : null,
+    timestamp: new Date().toISOString(),
+  };
+  await dumpStateToFile(JSON.stringify(snapshot, null, 2));
+}
+
 // --- Keyboard shortcuts ---
 
 document.addEventListener("keydown", (e) => {
@@ -135,6 +171,11 @@ document.addEventListener("keydown", (e) => {
   if (meta && e.key === "f") {
     e.preventDefault();
     toggleSearch();
+  }
+
+  if (meta && e.shiftKey && e.key === "d") {
+    e.preventDefault();
+    handleStateDump();
   }
 
   if (e.key === "F2") {

@@ -121,3 +121,11 @@ pub fn watch_file(path: String, app: tauri::AppHandle) -> Result<(), String> {
 pub fn unwatch_file() {
     file_watcher::unwatch();
 }
+
+#[tauri::command]
+pub fn dump_state_to_file(state_json: String) -> Result<(), String> {
+    let dir = std::env::temp_dir();
+    let path = dir.join("mdcat-state.json");
+    std::fs::write(&path, &state_json)
+        .map_err(|e| format!("Failed to write state dump: {}", e))
+}

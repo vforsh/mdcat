@@ -95,17 +95,18 @@ sleep 0.3
 
 Common element IDs returned by `peekaboo see --app "mdcat" --json-output`:
 
-| Element | Typical ID | Label |
-|---------|-----------|-------|
+| Element | Typical ID | Label (ARIA) |
+|---------|-----------|------|
 | Close button | `elem_5` | `"Close window"` |
 | Preview button | `elem_9` | `"Preview"` |
 | Edit button | `elem_10` | `"Edit"` |
 | New file button | `elem_12` | `"New file"` |
-| Search input | `elem_19` | `"Search..."` |
-| Case toggle (Aa) | `elem_21` | `"Aa"` |
-| Previous match | `elem_22` | `"Previous (Shift+Enter)"` |
-| Next match | `elem_23` | `"Next (Enter)"` |
-| Close search | `elem_24` | `"Close (Escape)"` |
+| Search input | `elem_19` | `"Search in document"` |
+| Case toggle (Aa) | `elem_21` | `"Toggle case sensitivity"` |
+| Previous match | `elem_22` | `"Previous match"` |
+| Next match | `elem_23` | `"Next match"` |
+| Close search | `elem_24` | `"Close search"` |
+| Copy path buttons | varies | `"Copy path"` |
 
 > Element IDs may shift when the UI changes. Always re-run `peekaboo see` to get fresh IDs.
 
@@ -158,13 +159,14 @@ peekaboo hotkey cmd,e
 ### Verify Current Mode
 
 ```bash
+# Method 1: Check aria-pressed on toggle buttons (preferred)
 peekaboo see --app "mdcat" --json-output \
-  | jq '[.data.ui_elements[] | select(.label == "Preview" or .label == "Edit")]'
-```
+  | jq '.data.ui_elements[] | select(.label == "Preview" or .label == "Edit") | {label, pressed: .attributes["aria-pressed"]}'
 
-Both buttons are always present. To determine active mode, take a screenshot and use `--analyze`:
+# Method 2: State dump (most reliable)
+peekaboo hotkey cmd,shift,d && sleep 0.3 && jq '.mode' /tmp/mdcat-state.json
 
-```bash
+# Method 3: AI visual analysis
 peekaboo image --mode screen --path /tmp/mode-check.png \
   --analyze "Is the app in preview mode or edit mode? Which toggle button appears active/highlighted?"
 ```
@@ -189,7 +191,7 @@ sleep 0.5
 
 # Click the search input to ensure focus (type alone won't reach the webview)
 peekaboo see --app "mdcat" --json-output > /tmp/ui.json
-SEARCH_ID=$(jq -r '.data.ui_elements[] | select(.label == "Search...") | .id' /tmp/ui.json)
+SEARCH_ID=$(jq -r '.data.ui_elements[] | select(.label == "Search in document") | .id' /tmp/ui.json)
 peekaboo click --on "$SEARCH_ID"
 sleep 0.3
 
@@ -288,14 +290,20 @@ peekaboo click --on "$CLOSE_ID"
 ### Verify a File Loaded Successfully
 
 ```bash
-# 1. Screenshot
-peekaboo see --app "mdcat" --path /tmp/mdcat-loaded.png
+# Method 1: State dump (most reliable)
+peekaboo hotkey cmd,shift,d && sleep 0.3
+jq '{file: .filePath, mode: .mode, contentLength: .contentLength}' /tmp/mdcat-state.json
 
-# 2. AI check
+# Method 2: Window title
+peekaboo list windows --app mdcat --json-output | jq '.data.windows[0].title'
+# → "mdcat - AGENTS.md"
+
+# Method 3: Screenshot + AI check
+peekaboo see --app "mdcat" --path /tmp/mdcat-loaded.png
 peekaboo image --mode screen --path /tmp/mdcat-verify.png \
   --analyze "What file is open in the markdown viewer? Is content visible in the preview?"
 
-# 3. Check sidebar shows .md files
+# Method 4: Check sidebar shows .md files
 peekaboo see --app "mdcat" --json-output \
   | jq '[.data.ui_elements[] | select(.label | test("\\.md$"))] | length'
 ```
@@ -356,14 +364,100 @@ peekaboo image --mode screen --path /tmp/mdcat-search.png \
 
 ---
 
+## Programmatic State Inspection
+
+### State Dump via ⌘⇧D
+
+Press `⌘⇧D` to write a JSON snapshot of the app state to `/tmp/mdcat-state.json`:
+
+```bash
+osascript -e 'tell application "System Events" to set frontmost of process "mdcat" to true'
+sleep 0.3
+peekaboo hotkey cmd,shift,d
+sleep 0.5
+cat /tmp/mdcat-state.json
+```
+
+Returns:
+```json
+{
+  "filePath": "/path/to/file.md",
+  "mode": "preview",
+  "dirty": false,
+  "contentLength": 1234,
+  "treeFileCount": 5,
+  "search": { "open": false, "query": "", "totalMatches": 0 },
+  "context": { "root": "/path/to/repo", "is_git": true },
+  "timestamp": "2026-02-09T..."
+}
+```
+
+### Debug API (dev mode only)
+
+When running via `npm run tauri dev`, `window.__mdcat` is available in the browser console:
+
+```bash
+# In devtools console (localhost:1420):
+window.__mdcat.getState()        // full state snapshot
+window.__mdcat.toggleMode()      // toggle preview/edit
+window.__mdcat.setMode("raw")    // set mode directly
+window.__mdcat.openSearch()      // open search panel
+window.__mdcat.closeSearch()     // close search panel
+window.__mdcat.setSearchQuery("text")  // search for "text"
+```
+
+### ARIA Labels & data-testid Selectors
+
+All interactive elements have ARIA labels for accessibility detection and `data-testid` attributes for stable selectors:
+
+```bash
+# Find elements by ARIA label
+peekaboo see --app "mdcat" --json-output \
+  | jq '.data.ui_elements[] | select(.label | test("Previous match|Next match|Close search|New file|Copy path|Toggle case"))'
+
+# Window title includes filename (native title synced)
+peekaboo list windows --app mdcat --json-output | jq '.data.windows[0].title'
+# → "mdcat - AGENTS.md"
+```
+
+**data-testid reference:**
+
+| Component | Selectors |
+|-----------|-----------|
+| Toolbar | `toolbar-close`, `toolbar-filename`, `toolbar-dirty`, `toolbar-preview-btn`, `toolbar-edit-btn` |
+| Search | `search-panel`, `search-input`, `search-counter`, `search-case-btn`, `search-prev-btn`, `search-next-btn`, `search-close-btn` |
+| File tree | `file-tree-header`, `file-tree`, `file-tree-add-btn`, `tree-dir-{name}`, `tree-file-{name}` |
+| Context menu | `context-menu`, `context-menu-{label-slug}` |
+| Preview | `preview-container`, `preview-content` |
+| Editor | `editor-container` |
+
+**ARIA reference:**
+
+| Element | Attribute |
+|---------|-----------|
+| Preview/Edit buttons | `aria-pressed="true\|false"` |
+| Search container | `role="search"` |
+| Search input | `aria-label="Search in document"` |
+| Search nav buttons | `aria-label="Previous match"`, `aria-label="Next match"` |
+| Case toggle | `aria-label="Toggle case sensitivity"` |
+| Close search | `aria-label="Close search"` |
+| Tree container | `role="tree"` |
+| Tree items | `role="treeitem"`, dirs get `aria-expanded="true\|false"` |
+| New file button | `aria-label="New file"` |
+| Copy path button | `aria-label="Copy path"` |
+| Context menu | `role="menu"`, items: `role="menuitem"` |
+
+---
+
 ## Tips
 
 - **Always focus the app** with `osascript` before sending hotkeys — they go to the frontmost app.
 - **Always re-run `peekaboo see`** before clicking — element IDs change on every UI update.
 - **Use `osascript` for text input** — `peekaboo type` doesn't reliably reach Tauri webview inputs.
 - **Use `--analyze`** for visual assertions that can't be checked via element inspection.
+- **Use ⌘⇧D + `/tmp/mdcat-state.json`** for programmatic state assertions without screenshots.
 - **Add `sleep 0.3`–`sleep 1`** between actions that trigger re-renders.
 - **Use `jq`** to programmatically extract element IDs from `see` JSON output.
-- **Prefer keyboard shortcuts** (⌘E, ⌘S, ⌘O, ⌘F, F2) — they're more reliable than clicking.
+- **Prefer keyboard shortcuts** (⌘E, ⌘S, ⌘O, ⌘F, ⌘⇧D, F2) — they're more reliable than clicking.
 - **For zoom shortcuts** (⌘+/⌘-/⌘0), use `osascript` — Peekaboo can't send `=`, `-`, `0` keys.
 - **Window screenshots**: use `screencapture -l <windowID>` (get ID via `peekaboo list windows --app mdcat --include-details bounds,ids --json-output | jq '.data.windows[0].windowID'`).

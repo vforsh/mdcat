@@ -17,9 +17,11 @@ export function createPreview(): HTMLElement {
   container.style.display = "block";
   container.style.height = "100%";
   container.style.overflow = "auto";
+  container.dataset.testid = "preview-container";
 
   wrap = document.createElement("div");
   wrap.className = "preview-wrap markdown-body";
+  wrap.dataset.testid = "preview-content";
   container.appendChild(wrap);
 
   container.addEventListener("click", (e) => {

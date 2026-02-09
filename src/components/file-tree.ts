@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { FileNode } from "../types";
 import { getState, subscribe, clearFile, setTree } from "../state";
 import { getFileTree, createFile, renameFile, deleteFile } from "../ipc";
@@ -18,10 +19,13 @@ export function createFileTree(selectHandler: (path: string) => void): HTMLEleme
 
   header = document.createElement("div");
   header.className = "sidebar-header";
+  header.dataset.testid = "file-tree-header";
   container.appendChild(header);
 
   treeWrap = document.createElement("div");
   treeWrap.className = "sidebar-tree";
+  treeWrap.setAttribute("role", "tree");
+  treeWrap.dataset.testid = "file-tree";
   treeWrap.tabIndex = 0;
   treeWrap.addEventListener("keydown", handleTreeKeydown);
   container.appendChild(treeWrap);
@@ -48,6 +52,8 @@ function render(state: ReturnType<typeof getState>) {
     const addBtn = document.createElement("button");
     addBtn.className = "sidebar-header-btn";
     addBtn.title = "New file";
+    addBtn.setAttribute("aria-label", "New file");
+    addBtn.dataset.testid = "file-tree-add-btn";
     addBtn.appendChild(icons.plus(14));
     addBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -108,9 +114,10 @@ function renderNodes(
 }
 
 function createCopyBtn(path: string): HTMLElement {
-  const btn = document.createElement("span");
+  const btn = document.createElement("button");
   btn.className = "tree-item-copy";
   btn.title = path;
+  btn.setAttribute("aria-label", "Copy path");
   btn.appendChild(icons.copy(13));
 
   btn.addEventListener("click", (e) => {
@@ -142,6 +149,9 @@ function renderDir(
   item.className = "tree-item";
   item.dataset.path = node.path;
   item.dataset.type = "dir";
+  item.setAttribute("role", "treeitem");
+  item.setAttribute("aria-expanded", String(expanded));
+  item.dataset.testid = `tree-dir-${node.name}`;
   item.style.paddingLeft = `${8 + depth * 16}px`;
 
   const chevron = document.createElement("span");
@@ -178,6 +188,7 @@ function renderDir(
     } else {
       manualExpanded.add(node.path);
     }
+    item.setAttribute("aria-expanded", String(!collapsed));
     chevron.innerHTML = "";
     chevron.appendChild(collapsed ? icons.chevronRight(14) : icons.chevronDown(14));
     folderIcon.innerHTML = "";
@@ -201,6 +212,8 @@ function renderFile(
   item.className = "tree-item";
   item.dataset.path = node.path;
   item.dataset.type = "file";
+  item.setAttribute("role", "treeitem");
+  item.dataset.testid = `tree-file-${node.name}`;
   if (node.path === activePath) item.classList.add("active");
   item.style.paddingLeft = `${8 + depth * 16}px`;
 
@@ -544,6 +557,7 @@ async function handleDelete(node: FileNode) {
     if (state.filePath === node.path) {
       clearFile();
       document.title = "mdcat";
+      getCurrentWindow().setTitle("mdcat");
     }
     await refreshTree();
   } catch (err) {
@@ -564,6 +578,7 @@ async function handleDeleteDir(node: FileNode) {
     if (state.filePath && files.includes(state.filePath)) {
       clearFile();
       document.title = "mdcat";
+      getCurrentWindow().setTitle("mdcat");
     }
     await refreshTree();
   } catch (err) {

@@ -12,23 +12,30 @@ export function createSearchPanel(navigateFn: (line: number) => void): HTMLEleme
 
   container = document.createElement("div");
   container.className = "search-panel";
+  container.setAttribute("role", "search");
+  container.dataset.testid = "search-panel";
 
   input = document.createElement("input");
   input.type = "text";
   input.className = "search-input";
   input.placeholder = "Search...";
+  input.setAttribute("aria-label", "Search in document");
+  input.dataset.testid = "search-input";
   input.addEventListener("input", handleInput);
   input.addEventListener("keydown", handleKeydown);
   container.appendChild(input);
 
   const counter = document.createElement("span");
   counter.className = "search-counter";
+  counter.dataset.testid = "search-counter";
   container.appendChild(counter);
 
   const caseBtn = document.createElement("button");
   caseBtn.className = "search-btn search-case-btn";
   caseBtn.textContent = "Aa";
   caseBtn.title = "Match case";
+  caseBtn.setAttribute("aria-label", "Toggle case sensitivity");
+  caseBtn.dataset.testid = "search-case-btn";
   caseBtn.addEventListener("click", () => {
     setSearch({ caseSensitive: !getState().search.caseSensitive });
     updateMatches();
@@ -38,6 +45,8 @@ export function createSearchPanel(navigateFn: (line: number) => void): HTMLEleme
   const prevBtn = document.createElement("button");
   prevBtn.className = "search-btn";
   prevBtn.title = "Previous (Shift+Enter)";
+  prevBtn.setAttribute("aria-label", "Previous match");
+  prevBtn.dataset.testid = "search-prev-btn";
   prevBtn.appendChild(iconChevronUp());
   prevBtn.addEventListener("click", goToPrev);
   container.appendChild(prevBtn);
@@ -45,6 +54,8 @@ export function createSearchPanel(navigateFn: (line: number) => void): HTMLEleme
   const nextBtn = document.createElement("button");
   nextBtn.className = "search-btn";
   nextBtn.title = "Next (Enter)";
+  nextBtn.setAttribute("aria-label", "Next match");
+  nextBtn.dataset.testid = "search-next-btn";
   nextBtn.appendChild(iconChevronDown());
   nextBtn.addEventListener("click", goToNext);
   container.appendChild(nextBtn);
@@ -52,6 +63,8 @@ export function createSearchPanel(navigateFn: (line: number) => void): HTMLEleme
   const closeBtn = document.createElement("button");
   closeBtn.className = "search-btn";
   closeBtn.title = "Close (Escape)";
+  closeBtn.setAttribute("aria-label", "Close search");
+  closeBtn.dataset.testid = "search-close-btn";
   closeBtn.appendChild(iconX());
   closeBtn.addEventListener("click", closeSearch);
   container.appendChild(closeBtn);

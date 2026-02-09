@@ -32,6 +32,7 @@ pub fn run() {
             commands::delete_file,
             commands::watch_file,
             commands::unwatch_file,
+            commands::dump_state_to_file,
         ])
         .setup(|app| {
             // Try tauri-plugin-cli first

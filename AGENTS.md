@@ -30,7 +30,7 @@ mdcat — Git-aware markdown viewer for macOS. Tauri v2 app with TypeScript fron
 
 ```
 src/
-├── main.ts              # Init, keyboard shortcuts (⌘E/S/O/+/-/0), zoom
+├── main.ts              # Init, keyboard shortcuts (⌘E/S/O/F/+/-/0, ⌘⇧D), zoom
 ├── state.ts             # Pub/sub state: file, content, mode, context, tree
 ├── types.ts             # AppContext, FileNode, AppMode interfaces
 ├── ipc.ts               # Tauri invoke wrappers
@@ -38,18 +38,22 @@ src/
 ├── components/
 │   ├── layout.ts        # Main layout + resize handle
 │   ├── toolbar.ts       # Top toolbar buttons
+│   ├── search.ts        # Find-in-file panel
 │   ├── file-tree.ts     # Sidebar with collapsible tree
+│   ├── context-menu.ts  # Right-click context menu
 │   ├── editor.ts        # CodeMirror 6 wrapper
 │   └── preview.ts       # Markdown preview renderer
 └── utils/
     ├── markdown.ts      # marked + YAML frontmatter handling
+    ├── search.ts        # Search match finding
     ├── watcher.ts       # Tauri plugin-fs file watcher
-    └── icons.ts         # SVG icon components
+    ├── icons.ts         # SVG icon components
+    └── state-bridge.ts  # window.__mdcat debug API (dev only)
 
 src-tauri/
 ├── src/
 │   ├── lib.rs           # Tauri setup, CLI parsing, macOS "Open With"
-│   ├── commands.rs      # IPC commands: get_context, get_file_tree, read_file, save_file
+│   ├── commands.rs      # IPC commands: file ops, context, tree, state dump
 │   ├── file_tree.rs     # Git root detection, tree building, filtering
 │   └── main.rs          # Entry point
 ├── tauri.conf.json      # Window config, file associations, bundle settings
@@ -108,6 +112,9 @@ docs/                    # Guides (macos-icon.md, testing-with-peekaboo.md)
 - **IPC fails**: Check Rust panics in terminal, verify command registration in `lib.rs`
 - **File tree empty**: Check Git root detection, filter logic in `file_tree.rs`
 - **Shortcuts not working**: Ensure focus is on window, check `keydown` handler in `main.ts`
+- **State dump**: Press ⌘⇧D → read `/tmp/mdcat-state.json` for app state snapshot
+- **Dev console**: `window.__mdcat.getState()` (dev mode only, see `src/utils/state-bridge.ts`)
+- **Automation selectors**: All interactive elements have `data-testid` and ARIA attributes; see [`docs/testing-with-peekaboo.md`](docs/testing-with-peekaboo.md)
 
 ---
 

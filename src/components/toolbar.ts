@@ -14,6 +14,7 @@ export function createToolbar(): HTMLElement {
   const closeBtn = document.createElement("button");
   closeBtn.className = "toolbar-close-btn";
   closeBtn.setAttribute("aria-label", "Close window");
+  closeBtn.dataset.testid = "toolbar-close";
   closeBtn.addEventListener("mousedown", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -29,6 +30,7 @@ export function createToolbar(): HTMLElement {
   // Filename (centered)
   const nameWrap = document.createElement("div");
   nameWrap.className = "toolbar-filename";
+  nameWrap.dataset.testid = "toolbar-filename";
 
   filenameEl = document.createElement("span");
   filenameEl.textContent = "mdcat";
@@ -37,6 +39,7 @@ export function createToolbar(): HTMLElement {
   dirtyDot = document.createElement("span");
   dirtyDot.className = "dirty-indicator";
   dirtyDot.textContent = "[edited]";
+  dirtyDot.dataset.testid = "toolbar-dirty";
   nameWrap.appendChild(dirtyDot);
 
   bar.appendChild(nameWrap);
@@ -49,11 +52,15 @@ export function createToolbar(): HTMLElement {
   previewBtn = document.createElement("button");
   previewBtn.className = "mode-toggle-btn active";
   previewBtn.textContent = "Preview";
+  previewBtn.setAttribute("aria-pressed", "true");
+  previewBtn.dataset.testid = "toolbar-preview-btn";
   previewBtn.addEventListener("click", () => { if (getState().mode !== "preview") toggleMode(); });
 
   rawBtn = document.createElement("button");
   rawBtn.className = "mode-toggle-btn";
   rawBtn.textContent = "Edit";
+  rawBtn.setAttribute("aria-pressed", "false");
+  rawBtn.dataset.testid = "toolbar-edit-btn";
   rawBtn.addEventListener("click", () => { if (getState().mode !== "raw") toggleMode(); });
 
   toggleWrap.append(previewBtn, rawBtn);
@@ -88,5 +95,7 @@ function render(state: ReturnType<typeof getState>) {
 
   const isPreview = state.mode === "preview";
   previewBtn.classList.toggle("active", isPreview);
+  previewBtn.setAttribute("aria-pressed", String(isPreview));
   rawBtn.classList.toggle("active", !isPreview);
+  rawBtn.setAttribute("aria-pressed", String(!isPreview));
 }

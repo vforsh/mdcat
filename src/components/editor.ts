@@ -32,6 +32,7 @@ export function createEditor(): HTMLElement {
   container = document.createElement("div");
   container.style.display = "none";
   container.style.height = "100%";
+  container.dataset.testid = "editor-container";
 
   subscribe(render);
 
