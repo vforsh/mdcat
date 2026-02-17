@@ -30,6 +30,13 @@ export function createPreview(): HTMLElement {
     const href = anchor.getAttribute("href");
     if (!href) return;
     e.preventDefault();
+    if (href.startsWith("#")) {
+      const target = wrap.querySelector(`[id="${CSS.escape(href.slice(1))}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
     openUrl(href);
   });
 

@@ -24,7 +24,8 @@ const renderer = {
   heading(this: { parser: { parseInline(tokens: Tokens.Generic[]): string } }, token: Tokens.Heading): string {
     const line = (token as TokenWithLine)._line;
     const attr = line != null ? ` data-source-line="${line}"` : "";
-    return `<h${token.depth}${attr}>${this.parser.parseInline(token.tokens)}</h${token.depth}>\n`;
+    const id = slugify(token.text);
+    return `<h${token.depth}${attr} id="${id}">${this.parser.parseInline(token.tokens)}</h${token.depth}>\n`;
   },
   paragraph(this: { parser: { parseInline(tokens: Tokens.Generic[]): string } }, token: Tokens.Paragraph): string {
     const line = (token as TokenWithLine)._line;
@@ -137,6 +138,16 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Generate a GFM-compatible heading slug */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/<[^>]*>/g, "") // strip HTML tags
+    .replace(/[^\w\s-]/g, "") // remove non-word chars (except spaces and hyphens)
+    .trim()
+    .replace(/\s+/g, "-"); // spaces → hyphens
 }
 
 /** Rewrite src attributes in raw HTML <img> tags */
