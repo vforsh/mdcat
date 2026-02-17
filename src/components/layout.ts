@@ -62,10 +62,19 @@ export function createLayout(
   empty.style.display = getState().filePath ? "none" : "flex";
 }
 
-function scrollPreviewToLine(line: number) {
-  const el = document.querySelector(`[data-source-line="${line}"]`);
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+export function scrollPreviewToLine(line: number) {
+  // Find closest data-source-line element (largest value ≤ target line)
+  let best: Element | null = null;
+  let bestLine = 0;
+  for (const el of document.querySelectorAll("[data-source-line]")) {
+    const n = parseInt((el as HTMLElement).dataset.sourceLine || "0", 10);
+    if (n <= line && n > bestLine) {
+      bestLine = n;
+      best = el;
+    }
+  }
+  if (best) {
+    best.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 

@@ -1,5 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getState, subscribe, toggleMode } from "../state";
+import { getState, subscribe } from "../state";
+import { syncToggleMode } from "../utils/scroll-sync";
 
 let filenameEl: HTMLElement;
 let dirtyDot: HTMLElement;
@@ -54,14 +55,14 @@ export function createToolbar(): HTMLElement {
   previewBtn.textContent = "Preview";
   previewBtn.setAttribute("aria-pressed", "true");
   previewBtn.dataset.testid = "toolbar-preview-btn";
-  previewBtn.addEventListener("click", () => { if (getState().mode !== "preview") toggleMode(); });
+  previewBtn.addEventListener("click", () => { if (getState().mode !== "preview") syncToggleMode(); });
 
   rawBtn = document.createElement("button");
   rawBtn.className = "mode-toggle-btn";
   rawBtn.textContent = "Edit";
   rawBtn.setAttribute("aria-pressed", "false");
   rawBtn.dataset.testid = "toolbar-edit-btn";
-  rawBtn.addEventListener("click", () => { if (getState().mode !== "raw") toggleMode(); });
+  rawBtn.addEventListener("click", () => { if (getState().mode !== "raw") syncToggleMode(); });
 
   toggleWrap.append(previewBtn, rawBtn);
 

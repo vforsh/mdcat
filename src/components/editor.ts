@@ -139,6 +139,12 @@ function syncSearch(state: ReturnType<typeof getState>) {
   view.dispatch({ effects: setSearchQuery.of(query) });
 }
 
+export function getEditorVisibleLine(): number {
+  if (!view) return 1;
+  const top = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+  return view.state.doc.lineAt(top.from).number;
+}
+
 export function getEditorContent(): string {
   return view?.state.doc.toString() || "";
 }

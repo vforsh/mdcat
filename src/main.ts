@@ -2,7 +2,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getContext, getFileTree, readFile, saveFile, getOpenedFile, setCurrentRoot, dumpStateToFile, benchReady } from "./ipc";
-import { getState, setFile, setContext, setTree, toggleMode, markClean, toggleSearch } from "./state";
+import { getState, setFile, setContext, setTree, markClean, toggleSearch } from "./state";
+import { syncToggleMode } from "./utils/scroll-sync";
 import { FileNode } from "./types";
 import { createLayout } from "./components/layout";
 import { renameActiveFile } from "./components/file-tree";
@@ -156,7 +157,7 @@ document.addEventListener("keydown", (e) => {
 
   if (meta && e.key === "e") {
     e.preventDefault();
-    toggleMode();
+    syncToggleMode();
   }
 
   if (meta && e.key === "s") {

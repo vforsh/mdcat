@@ -75,6 +75,17 @@ function render(state: ReturnType<typeof getState>) {
   applySearchHighlights(state.search);
 }
 
+export function getPreviewVisibleLine(): number {
+  const scrollTop = container.scrollTop;
+  const els = container.querySelectorAll("[data-source-line]");
+  for (const el of els) {
+    if ((el as HTMLElement).offsetTop >= scrollTop) {
+      return parseInt((el as HTMLElement).dataset.sourceLine || "1", 10);
+    }
+  }
+  return 1;
+}
+
 function applySearchHighlights(search: SearchState) {
   const changed =
     search.open !== lastSearch.open ||
