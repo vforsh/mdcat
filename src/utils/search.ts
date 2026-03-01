@@ -100,6 +100,8 @@ export function highlightDom(
   let matchCount = 0;
 
   for (const textNode of textNodes) {
+    if (textNode.parentElement?.closest("svg")) continue;
+
     const text = textNode.textContent || "";
     const nodeMatches: { index: number; length: number }[] = [];
     let m: RegExpExecArray | null;

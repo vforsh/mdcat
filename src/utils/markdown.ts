@@ -1,7 +1,7 @@
 import { Marked, Token, Tokens, TokensList } from "marked";
-import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { renderMermaidSVG } from "beautiful-mermaid";
 
 type TokenWithLine = Tokens.Generic & { _line?: number };
 
@@ -42,7 +42,27 @@ const renderer = {
   code(token: Tokens.Code): string {
     const line = (token as TokenWithLine)._line;
     const attr = line != null ? ` data-source-line="${line}"` : "";
-    const lang = token.lang || "";
+    const lang = getCodeLanguage(token.lang);
+
+    if (lang === "mermaid") {
+      try {
+        const bg = getCssVarColor("--bg", "#ffffff");
+        const fg = getCssVarColor("--text", "#24292f");
+        const accent = getCssVarColor("--accent", "#0969da");
+        const svg = renderMermaidSVG(token.text, {
+          bg,
+          fg,
+          accent,
+          transparent: false,
+          font: "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif",
+        });
+        return `<div${attr} class="mermaid-diagram" data-mermaid="true">${svg}</div>\n`;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `<pre${attr} class="mermaid-error"><code class="hljs language-mermaid">${escapeHtml(token.text)}</code></pre>\n<p class="mermaid-error-message">Mermaid render error: ${escapeHtml(message)}</p>\n`;
+      }
+    }
+
     let code = token.text;
     if (lang && hljs.getLanguage(lang)) {
       code = hljs.highlight(token.text, { language: lang }).value;
@@ -90,18 +110,7 @@ const renderer = {
   },
 };
 
-const marked = new Marked(
-  { renderer },
-  markedHighlight({
-    langPrefix: "hljs language-",
-    highlight(code, lang) {
-      if (lang && hljs.getLanguage(lang)) {
-        return hljs.highlight(code, { language: lang }).value;
-      }
-      return hljs.highlightAuto(code).value;
-    },
-  }),
-);
+const marked = new Marked({ renderer });
 
 marked.setOptions({
   gfm: true,
@@ -138,6 +147,18 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function getCodeLanguage(info: string | undefined): string {
+  if (!info) return "";
+  const first = info.trim().split(/\s+/)[0];
+  return first.toLowerCase();
+}
+
+function getCssVarColor(name: string, fallback: string): string {
+  if (typeof window === "undefined" || typeof document === "undefined") return fallback;
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
 }
 
 /** Generate a GFM-compatible heading slug */

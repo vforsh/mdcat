@@ -17,6 +17,7 @@ mdcat treats markdown as a first-class format: GitHub-styled preview by default,
 - **File watching** — reloads on external changes (respects unsaved edits)
 - **YAML frontmatter** — rendered as a code block in preview
 - **Code highlighting** — syntax highlighting in both editor and preview via highlight.js
+- **Mermaid diagrams** — fenced `mermaid` blocks render as inline SVG diagrams
 - **Zoom** — `⌘+` / `⌘-` / `⌘0` with toast indicator
 - **macOS integration** — registers as handler for `.md`, `.markdown`, `.mdown`, `.mkd`; supports "Open With"
 - **GitHub-flavored styling** — preview uses `github-markdown-css`
@@ -38,7 +39,7 @@ mdcat treats markdown as a first-class format: GitHub-styled preview by default,
 | Desktop framework | Tauri v2 |
 | Frontend | TypeScript, Vite |
 | Editor | CodeMirror 6 |
-| Markdown | marked + marked-highlight |
+| Markdown | marked + highlight.js |
 | Backend | Rust (file I/O, git detection, file tree) |
 
 ## Development

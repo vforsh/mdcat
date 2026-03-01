@@ -9,7 +9,7 @@ describe("renderMarkdown", () => {
 
   it("renders heading with correct depth and line", () => {
     const html = renderMarkdown("# Title\n\nParagraph");
-    expect(html).toContain('<h1 data-source-line="1">Title</h1>');
+    expect(html).toContain('<h1 data-source-line="1" id="title">Title</h1>');
     expect(html).toContain('<p data-source-line="3">Paragraph</p>');
   });
 
@@ -17,7 +17,7 @@ describe("renderMarkdown", () => {
     const source = "---\ntitle: Test\n---\n# Heading";
     const html = renderMarkdown(source);
     expect(html).toContain("frontmatter");
-    expect(html).toContain('<h1 data-source-line="4">Heading</h1>');
+    expect(html).toContain('<h1 data-source-line="4" id="heading">Heading</h1>');
   });
 
   it("escapes frontmatter content", () => {
@@ -30,7 +30,13 @@ describe("renderMarkdown", () => {
   it("renders code blocks with language class", () => {
     const html = renderMarkdown("```js\nconst x = 1;\n```");
     expect(html).toContain('class="hljs language-js"');
-    expect(html).toContain("const x = 1");
+    expect(html).toContain("hljs-keyword");
+  });
+
+  it("renders mermaid code blocks as SVG diagrams", () => {
+    const html = renderMarkdown("```mermaid\ngraph TD\nA --> B\n```");
+    expect(html).toContain('class="mermaid-diagram"');
+    expect(html).toContain("<svg");
   });
 
   it("renders unordered list with line number", () => {

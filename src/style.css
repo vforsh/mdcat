@@ -364,6 +364,25 @@ body {
   font-size: 1rem;
 }
 
+.preview-wrap .mermaid-diagram {
+  margin: 1rem 0 1.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+.preview-wrap .mermaid-diagram > svg {
+  display: block;
+  max-width: none;
+  height: auto;
+}
+
+.preview-wrap .mermaid-error-message {
+  margin: -0.5rem 0 1rem;
+  color: #cf222e;
+  font-size: 0.85rem;
+}
+
 /* Frontmatter */
 .preview-wrap pre.frontmatter {
   background: #f6f8fa;
